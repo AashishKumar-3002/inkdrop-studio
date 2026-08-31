@@ -1,176 +1,153 @@
-"use client";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import {
+  BookOpen,
+  Feather,
+  Image as ImageIcon,
+  Layers,
+  Lock,
+  PenLine,
+  Sparkles,
+  Upload,
+} from "lucide-react";
+import { auth } from "@/lib/auth";
+import { Wordmark } from "@/components/Brand";
+import { ThemeToggle } from "@/components/ThemeProvider";
+import { Button, Card } from "@/components/ui";
 
-import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
-import { Project } from "@/lib/types";
+const FEATURES = [
+  {
+    Icon: Sparkles,
+    title: "A story bible, without the homework",
+    body: "Answer a short visual questionnaire — tap chips, write your own when you want to. Or paste notes you already have and let Inkdrop map them onto the questions for you.",
+  },
+  {
+    Icon: PenLine,
+    title: "Chapters drafted from your idea",
+    body: "Say what has to happen in chapter 12. Inkdrop writes it in full, grounded in your bible, your voice, and everything that happened before.",
+  },
+  {
+    Icon: Layers,
+    title: "Context that scales past chapter 3",
+    body: "A hidden rolling summary keeps continuity across a whole novel, so the model remembers book one without you pasting it in every time.",
+  },
+  {
+    Icon: Lock,
+    title: "Lock what's finished",
+    body: "A locked chapter can't be edited, regenerated or deleted — revising chapter 8 never quietly rewrites the chapter 9 you were happy with.",
+  },
+  {
+    Icon: ImageIcon,
+    title: "Cover studio",
+    body: "Get art directions drawn from your own story, generate a cover, and put it on a real EPUB with a proper title page.",
+  },
+  {
+    Icon: BookOpen,
+    title: "Export a finished book",
+    body: "Any chapter or the whole manuscript, as Markdown, PDF or EPUB. Take your project with you as a portable file whenever you like.",
+  },
+];
 
-export default function HomePage() {
-  const router = useRouter();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [name, setName] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [importError, setImportError] = useState<string | null>(null);
-  const [importing, setImporting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    api
-      .listProjects()
-      .then(setProjects)
-      .finally(() => setLoading(false));
-  }, []);
-
-  async function createProject() {
-    if (creating) return;
-    setCreating(true);
-    try {
-      const project = await api.createProject(name || "Untitled Project");
-      router.push(`/project/${project.id}/onboarding`);
-    } finally {
-      setCreating(false);
-    }
-  }
-
-  async function removeProject(id: string) {
-    if (!confirm("Delete this project? This cannot be undone.")) return;
-    await api.deleteProject(id);
-    setProjects((prev) => prev.filter((p) => p.id !== id));
-  }
-
-  async function handleImportFile(file: File) {
-    setImportError(null);
-    setImporting(true);
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      const project = await api.importProject(data);
-      router.push(
-        project.onboardingComplete
-          ? `/project/${project.id}/chapters`
-          : `/project/${project.id}/onboarding`
-      );
-    } catch (e) {
-      setImportError(
-        e instanceof Error ? e.message : "Couldn't read that file as an Inkdrop project."
-      );
-    } finally {
-      setImporting(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  }
+export default async function LandingPage() {
+  const session = await auth();
+  if (session?.user) redirect("/dashboard");
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-6 py-16">
-      <div className="mb-12 flex items-center gap-4">
-        <Image src="/logo.png" alt="" width={56} height={56} className="rounded-2xl" />
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-neutral-900">
-            Inkdrop Studio
-          </h1>
-          <p className="mt-1 text-neutral-500">
-            Ideate your novel, build a story bible, and let AI draft full chapters
-            from your ideas — grounded in your voice and your story so far.
-          </p>
+    <>
+      <header className="sticky top-0 z-40 border-b border-line bg-paper/85 backdrop-blur">
+        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
+          <Wordmark href={null} />
+          <div className="flex items-center gap-2">
+            <ThemeToggle className="hidden sm:inline-flex" />
+            <Link href="/login">
+              <Button variant="ghost" size="sm">
+                Sign in
+              </Button>
+            </Link>
+            <Link href="/register">
+              <Button size="sm">Get started</Button>
+            </Link>
+          </div>
         </div>
-      </div>
+      </header>
 
-      <div className="mb-10 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-neutral-500">
-          Start a new project
-        </h2>
-        <div className="flex gap-2">
-          <input
-            className="flex-1 rounded-xl border border-neutral-300 px-4 py-2.5 text-sm focus:border-neutral-900 focus:outline-none"
-            placeholder="Project name (you can change the book's title later)"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && createProject()}
-          />
-          <button
-            onClick={createProject}
-            disabled={creating}
-            className="rounded-xl bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50"
-          >
-            {creating ? "Creating..." : "Create"}
-          </button>
+      <main id="main" className="flex-1">
+        <section className="mx-auto w-full max-w-6xl px-4 pb-16 pt-16 sm:px-6 sm:pt-24">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium text-ink-muted">
+              <Feather className="h-3.5 w-3.5" />
+              Bring your own model — Claude, GPT, OpenRouter or NVIDIA NIM
+            </p>
+            <h1 className="text-balance text-4xl font-semibold tracking-tight text-ink sm:text-5xl">
+              Write the novel you keep describing to people
+            </h1>
+            <p className="mx-auto mt-5 max-w-2xl text-pretty text-lg text-ink-muted">
+              Inkdrop Studio turns the story in your head into a working story
+              bible, then drafts full chapters from your ideas — in your voice,
+              with your continuity, all the way to an exportable book.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              <Link href="/register">
+                <Button size="lg">Start writing free</Button>
+              </Link>
+              <Link href="/login">
+                <Button size="lg" variant="secondary">
+                  I already have an account
+                </Button>
+              </Link>
+            </div>
+            <p className="mt-4 text-xs text-ink-subtle">
+              No credit card. You supply your own model API key, so you pay the
+              provider directly and nothing sits in the middle.
+            </p>
+          </div>
+        </section>
+
+        <section className="border-y border-line bg-surface/60 py-16">
+          <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
+            <h2 className="mb-2 text-center text-2xl font-semibold tracking-tight text-ink">
+              Everything between the idea and the manuscript
+            </h2>
+            <p className="mx-auto mb-10 max-w-2xl text-center text-sm text-ink-muted">
+              Not a chatbot with a writing prompt — a workspace that actually
+              holds your book.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {FEATURES.map(({ Icon, title, body }) => (
+                <Card key={title} className="p-5">
+                  <Icon className="mb-3 h-5 w-5 text-accent" />
+                  <h3 className="mb-1.5 text-sm font-semibold text-ink">{title}</h3>
+                  <p className="text-sm leading-relaxed text-ink-muted">{body}</p>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="py-16">
+          <div className="mx-auto w-full max-w-3xl px-4 text-center sm:px-6">
+            <Upload className="mx-auto mb-4 h-6 w-6 text-ink-subtle" />
+            <h2 className="text-2xl font-semibold tracking-tight text-ink">
+              Already have chapters written?
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-sm text-ink-muted">
+              Upload them in bulk, mark what&rsquo;s a draft and what&rsquo;s
+              final, and Inkdrop will pick up from wherever you actually are —
+              you don&rsquo;t have to start at chapter one.
+            </p>
+            <Link href="/register" className="mt-7 inline-block">
+              <Button size="lg">Create your workspace</Button>
+            </Link>
+          </div>
+        </section>
+      </main>
+
+      <footer className="border-t border-line py-8">
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-4 px-4 text-xs text-ink-subtle sm:flex-row sm:px-6">
+          <Wordmark href={null} size={20} />
+          <p>Your work stays yours. Export the whole project any time.</p>
         </div>
-
-        <div className="mt-4 flex items-center gap-3 border-t border-neutral-100 pt-4">
-          <p className="flex-1 text-xs text-neutral-400">
-            Already have a project exported from Inkdrop? Import its{" "}
-            <code>.inkdrop.json</code> file.
-          </p>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importing}
-            className="rounded-xl border border-neutral-300 px-4 py-2 text-sm text-neutral-700 hover:border-neutral-500 disabled:opacity-50"
-          >
-            {importing ? "Importing..." : "Import project"}
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="application/json,.json,.inkdrop.json"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleImportFile(file);
-            }}
-          />
-        </div>
-        {importError && <p className="mt-2 text-xs text-red-500">{importError}</p>}
-      </div>
-
-      <div>
-        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-neutral-500">
-          Your projects
-        </h2>
-        {loading ? (
-          <p className="text-sm text-neutral-400">Loading...</p>
-        ) : projects.length === 0 ? (
-          <p className="text-sm text-neutral-400">
-            No projects yet — start one above.
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {projects.map((p) => (
-              <li
-                key={p.id}
-                className="group flex items-center justify-between rounded-xl border border-neutral-200 bg-white px-5 py-4 shadow-sm transition hover:border-neutral-400"
-              >
-                <button
-                  className="flex-1 text-left"
-                  onClick={() =>
-                    router.push(
-                      p.onboardingComplete
-                        ? `/project/${p.id}/chapters`
-                        : `/project/${p.id}/onboarding`
-                    )
-                  }
-                >
-                  <div className="font-medium text-neutral-900">
-                    {p.book?.title || p.name}
-                  </div>
-                  <div className="mt-0.5 text-xs text-neutral-400">
-                    {p.name !== (p.book?.title || p.name) ? `${p.name} · ` : ""}
-                    {p.chapters.length} chapter{p.chapters.length === 1 ? "" : "s"} ·{" "}
-                    {p.onboardingComplete ? "Story bible ready" : "Onboarding incomplete"}
-                  </div>
-                </button>
-                <button
-                  onClick={() => removeProject(p.id)}
-                  className="ml-4 text-xs text-neutral-300 opacity-0 transition hover:text-red-500 group-hover:opacity-100"
-                >
-                  Delete
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </main>
+      </footer>
+    </>
   );
 }
