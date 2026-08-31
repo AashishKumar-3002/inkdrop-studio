@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: inkdrop
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-inkdrop}
+      POSTGRES_DB: inkdrop
+    volumes:
+      - inkdrop-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inkdrop -d inkdrop"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://inkdrop:${POSTGRES_PASSWORD:-inkdrop}@db:5432/inkdrop
+      # Generate real values before deploying:
+      #   openssl rand -base64 32   -> AUTH_SECRET
+      #   openssl rand -hex 32      -> ENCRYPTION_KEY
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in your .env}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set ENCRYPTION_KEY in your .env}
+      AUTH_URL: ${AUTH_URL:-http://localhost:3000}
+      # Optional instance-wide fallback keys.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+    ports:
+      - "3000:3000"
+
+volumes:
+  inkdrop-db:
