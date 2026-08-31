@@ -67,12 +67,29 @@ export interface Chapter {
   updatedAt: string;
 }
 
-export type AIProviderId = "anthropic" | "openai";
+export const AI_PROVIDER_IDS = [
+  "anthropic",
+  "openai",
+  "openrouter",
+  "nvidia",
+] as const;
+
+export type AIProviderId = (typeof AI_PROVIDER_IDS)[number];
+
+export function isAIProviderId(value: unknown): value is AIProviderId {
+  return (
+    typeof value === "string" && (AI_PROVIDER_IDS as readonly string[]).includes(value)
+  );
+}
 
 export interface AISettings {
   provider: AIProviderId;
   model: string;
-  /** Stored locally in the project file for this prototype. Falls back to env vars if empty. */
+  /**
+   * Per-provider API keys, encrypted at rest (see lib/crypto.ts). Never sent
+   * to the browser — the client only ever receives a masked placeholder.
+   * Falls back to the matching env var when unset.
+   */
   apiKeys: Partial<Record<AIProviderId, string>>;
   /** How many previous chapters to include in full (rest are summarized). */
   fullContextWindow: number;
@@ -166,6 +183,8 @@ export function emptyStoryboard(): Storyboard {
 
 export interface Project {
   id: string;
+  /** Owner. Every query is scoped by this — see lib/repo/projects.ts. */
+  userId: string;
   /** Internal / working project name (asked first, at creation). */
   name: string;
   createdAt: string;
@@ -179,3 +198,14 @@ export interface Project {
   rollingSummary: RollingSummary;
   storyboard: Storyboard;
 }
+
+/**
+ * A project as the browser is allowed to see it: API keys replaced by a
+ * boolean "is one configured?" flag. Secrets never cross to the client.
+ */
+export type ClientProject = Omit<Project, "aiSettings" | "imageSettings"> & {
+  aiSettings: Omit<AISettings, "apiKeys"> & {
+    configuredKeys: Partial<Record<AIProviderId, boolean>>;
+  };
+  imageSettings: Omit<ImageSettings, "apiKey"> & { hasApiKey: boolean };
+};
