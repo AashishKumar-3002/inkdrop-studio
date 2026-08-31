@@ -2,129 +2,200 @@ import {
   AISettings,
   BookMeta,
   Chapter,
+  ClientProject,
   ImageSettings,
-  Project,
   RollingSummary,
   Storyboard,
   StoryBible,
 } from "./types";
+import type { ProviderModel } from "./ai/types";
+
+/** What the dashboard list endpoint returns — no chapter bodies. */
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  onboardingComplete: boolean;
+  book: BookMeta;
+  chapterCount: number;
+  wordCount: number;
+}
+
+export interface ProviderInfo {
+  id: string;
+  label: string;
+  defaultModel: string;
+  models: ProviderModel[];
+  docsUrl?: string;
+  keyHint?: string;
+  envVar: string;
+}
+
+/** An API error carrying the HTTP status, so callers can special-case 409s. */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly details?: Record<string, string[]>
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `Request failed: ${res.status}`);
+    const body = await res.json().catch(() => ({}) as Record<string, unknown>);
+    const message =
+      typeof body.error === "string" ? body.error : `Request failed (${res.status})`;
+    // A session that expired mid-session shouldn't surface as a cryptic
+    // error — send them to sign in and come back where they were.
+    if (res.status === 401 && typeof window !== "undefined") {
+      const back = encodeURIComponent(window.location.pathname + window.location.search);
+      // A deliberate full-document navigation, not a client-side route change:
+      // the session is gone, so every cached RSC payload and client cache
+      // entry for this user has to be discarded. This module is plain TS with
+      // no access to the router, and a soft push would keep stale data around.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.href = `/login?callbackUrl=${back}`;
+    }
+    throw new ApiError(
+      message,
+      res.status,
+      body.details as Record<string, string[]> | undefined
+    );
   }
   return res.json();
 }
 
+const jsonHeaders = { "Content-Type": "application/json" };
+
+function post(url: string, body?: unknown) {
+  return fetch(url, {
+    method: "POST",
+    headers: jsonHeaders,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+}
+
+function put(url: string, body: unknown) {
+  return fetch(url, { method: "PUT", headers: jsonHeaders, body: JSON.stringify(body) });
+}
+
 export const api = {
-  listProjects: () => fetch("/api/projects").then((r) => json<Project[]>(r)),
+  /* Projects */
+  listProjects: () => fetch("/api/projects").then((r) => json<ProjectSummary[]>(r)),
   createProject: (name: string) =>
-    fetch("/api/projects", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    }).then((r) => json<Project>(r)),
+    post("/api/projects", { name }).then((r) => json<ClientProject>(r)),
   importProject: (data: unknown) =>
-    fetch("/api/projects/import", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    }).then((r) => json<Project>(r)),
+    post("/api/projects/import", data).then((r) => json<ClientProject>(r)),
   getProject: (id: string) =>
-    fetch(`/api/projects/${id}`).then((r) => json<Project>(r)),
+    fetch(`/api/projects/${id}`).then((r) => json<ClientProject>(r)),
+  updateProject: (id: string, patch: { name?: string; onboardingComplete?: boolean }) =>
+    fetch(`/api/projects/${id}`, {
+      method: "PATCH",
+      headers: jsonHeaders,
+      body: JSON.stringify(patch),
+    }).then((r) => json<ClientProject>(r)),
   deleteProject: (id: string) =>
     fetch(`/api/projects/${id}`, { method: "DELETE" }).then((r) => json(r)),
+
+  /* Story bible */
   saveBible: (id: string, storyBible: StoryBible, onboardingComplete?: boolean) =>
-    fetch(`/api/projects/${id}/bible`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ storyBible, onboardingComplete }),
-    }).then((r) => json<Project>(r)),
+    put(`/api/projects/${id}/bible`, { storyBible, onboardingComplete }).then((r) =>
+      json<ClientProject>(r)
+    ),
   extractBibleFromText: (id: string, text: string) =>
-    fetch(`/api/projects/${id}/bible/extract`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    }).then((r) => json<{ project: Project; filledCount: number }>(r)),
-  saveSettings: (id: string, aiSettings: Partial<AISettings>) =>
-    fetch(`/api/projects/${id}/settings`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(aiSettings),
-    }).then((r) => json<Project>(r)),
-  saveImageSettings: (id: string, imageSettings: Partial<ImageSettings>) =>
-    fetch(`/api/projects/${id}/image-settings`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(imageSettings),
-    }).then((r) => json<Project>(r)),
+    post(`/api/projects/${id}/bible/extract`, { text }).then((r) =>
+      json<{ project: ClientProject; filledCount: number }>(r)
+    ),
+
+  /* Settings */
+  listProviders: () =>
+    fetch("/api/providers").then((r) => json<{ providers: ProviderInfo[] }>(r)),
+  saveSettings: (
+    id: string,
+    patch: Partial<Omit<AISettings, "apiKeys">> & {
+      apiKey?: string;
+      apiKeyProvider?: string;
+    }
+  ) => put(`/api/projects/${id}/settings`, patch).then((r) => json<ClientProject>(r)),
+  saveImageSettings: (id: string, patch: Partial<ImageSettings>) =>
+    put(`/api/projects/${id}/image-settings`, patch).then((r) => json<ClientProject>(r)),
   saveRollingSummarySettings: (id: string, patch: Partial<RollingSummary>) =>
-    fetch(`/api/projects/${id}/rolling-summary`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
-    }).then((r) => json<Project>(r)),
+    put(`/api/projects/${id}/rolling-summary`, patch).then((r) => json<ClientProject>(r)),
+
+  /* Book & cover */
   saveBook: (id: string, book: Partial<BookMeta>) =>
-    fetch(`/api/projects/${id}/book`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(book),
-    }).then((r) => json<Project>(r)),
+    put(`/api/projects/${id}/book`, book).then((r) => json<ClientProject>(r)),
   suggestCoverDirections: (id: string, vision: string) =>
-    fetch(`/api/projects/${id}/book/cover/suggest`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ vision }),
-    }).then((r) => json<{ directions: string[] }>(r)),
+    post(`/api/projects/${id}/book/cover/suggest`, { vision }).then((r) =>
+      json<{ directions: string[] }>(r)
+    ),
   generateCover: (id: string, prompt: string) =>
-    fetch(`/api/projects/${id}/book/cover/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt }),
-    }).then((r) => json<{ imageDataUrl: string }>(r)),
+    post(`/api/projects/${id}/book/cover/generate`, { prompt }).then((r) =>
+      json<{ imageDataUrl: string }>(r)
+    ),
+
+  /* Chapters */
   createChapter: (
     id: string,
-    data: { title?: string; idea?: string; content?: string; status?: Chapter["status"]; mode?: Chapter["mode"] }
+    data: {
+      title?: string;
+      idea?: string;
+      content?: string;
+      status?: Chapter["status"];
+      mode?: Chapter["mode"];
+    }
+  ) => post(`/api/projects/${id}/chapters`, data).then((r) => json<Chapter>(r)),
+  createChapters: (
+    id: string,
+    chapters: { title: string; content: string; status: Chapter["status"] }[]
   ) =>
-    fetch(`/api/projects/${id}/chapters`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    }).then((r) => json<Chapter>(r)),
+    post(`/api/projects/${id}/chapters`, { chapters }).then((r) =>
+      json<{ chapters: Chapter[] }>(r)
+    ),
   updateChapter: (id: string, chapterId: string, patch: Partial<Chapter>) =>
     fetch(`/api/projects/${id}/chapters/${chapterId}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: jsonHeaders,
       body: JSON.stringify(patch),
     }).then((r) => json<Chapter>(r)),
   deleteChapter: (id: string, chapterId: string) =>
-    fetch(`/api/projects/${id}/chapters/${chapterId}`, {
-      method: "DELETE",
-    }).then((r) => json(r)),
+    fetch(`/api/projects/${id}/chapters/${chapterId}`, { method: "DELETE" }).then((r) =>
+      json(r)
+    ),
   suggestChapterTitle: (id: string, chapterId: string) =>
-    fetch(`/api/projects/${id}/chapters/${chapterId}/suggest-title`, {
-      method: "POST",
-    }).then((r) => json<{ title: string }>(r)),
+    post(`/api/projects/${id}/chapters/${chapterId}/suggest-title`).then((r) =>
+      json<{ title: string }>(r)
+    ),
+
+  /** Streams a chapter draft, calling onChunk as text arrives. */
   generateChapter: async (
     id: string,
     chapterId: string,
     opts: { provider?: string; model?: string },
-    onChunk: (chunk: string) => void
+    onChunk: (chunk: string) => void,
+    signal?: AbortSignal
   ): Promise<string> => {
     const res = await fetch(`/api/projects/${id}/chapters/${chapterId}/generate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: jsonHeaders,
       body: JSON.stringify(opts),
+      signal,
     });
     if (!res.ok || !res.body) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.error || "Generation failed to start");
+      const body = await res.json().catch(() => ({}) as Record<string, unknown>);
+      throw new ApiError(
+        typeof body.error === "string" ? body.error : "Generation failed to start",
+        res.status
+      );
     }
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let full = "";
-    while (true) {
+    for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
       const chunk = decoder.decode(value, { stream: true });
@@ -133,16 +204,12 @@ export const api = {
     }
     return full;
   },
+
+  /* Storyboard */
   saveStoryboard: (id: string, storyboard: Pick<Storyboard, "notes" | "strokes">) =>
-    fetch(`/api/projects/${id}/storyboard`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(storyboard),
-    }).then((r) => json<Project>(r)),
+    put(`/api/projects/${id}/storyboard`, storyboard).then((r) => json<ClientProject>(r)),
   askStoryboardAgent: (id: string, question: string, canvasImageDataUrl?: string) =>
-    fetch(`/api/projects/${id}/storyboard/ask`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, canvasImageDataUrl }),
-    }).then((r) => json<{ answer: string; chat: Storyboard["chat"] }>(r)),
+    post(`/api/projects/${id}/storyboard/ask`, { question, canvasImageDataUrl }).then(
+      (r) => json<{ answer: string; chat: Storyboard["chat"] }>(r)
+    ),
 };
