@@ -2,10 +2,37 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { api } from "@/lib/api";
-import { StoryboardChatMessage, StoryboardNote, StoryboardStroke } from "@/lib/types";
+import Link from "next/link";
+import { toast } from "sonner";
+import {
+  Eraser,
+  Hand,
+  Info,
+  MessageSquareText,
+  Pencil,
+  Plus,
+  Send,
+  StickyNote,
+  Undo2,
+  X,
+} from "lucide-react";
+import { api, ApiError } from "@/lib/api";
+import { ClientProject, StoryboardChatMessage, StoryboardNote, StoryboardStroke } from "@/lib/types";
+import { Button, Card, CardHeader, EmptyState, ErrorState, Skeleton } from "@/components/ui";
 
 const NOTE_COLORS = ["#FEF3C7", "#DBEAFE", "#DCFCE7", "#FCE7F3", "#E5E7EB"];
+/** Near-black — sticky notes keep a fixed pastel background in both themes,
+ * so their text needs a fixed dark ink rather than a token that would flip
+ * to a light color (and vanish) in dark mode. */
+const NOTE_TEXT_COLOR = "#1f2937";
+/** A mid-blue reads on both the light and dark board backgrounds; a pure
+ * black default pen would disappear against the dark-mode board. */
+const DEFAULT_PEN_COLOR = "#2563eb";
+
+const MAX_NOTES = 500;
+const MAX_NOTE_TEXT = 5000;
+const MAX_STROKES = 2000;
+const MAX_POINTS_PER_STROKE = 10000;
 
 function makeId() {
   return Math.random().toString(36).slice(2, 10);
@@ -29,15 +56,16 @@ function makeNewNote(): StoryboardNote {
 export default function StoryboardPage() {
   const { id } = useParams<{ id: string }>();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [notes, setNotes] = useState<StoryboardNote[]>([]);
   const [strokes, setStrokes] = useState<StoryboardStroke[]>([]);
   const [chat, setChat] = useState<StoryboardChatMessage[]>([]);
   const [mode, setMode] = useState<"move" | "draw">("move");
-  const [drawColor, setDrawColor] = useState("#111827");
+  const [drawColor, setDrawColor] = useState(DEFAULT_PEN_COLOR);
   const [chatOpen, setChatOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [asking, setAsking] = useState(false);
-  const [askError, setAskError] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
 
   const boardRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -45,16 +73,35 @@ export default function StoryboardPage() {
   const currentStrokeRef = useRef<{ x: number; y: number }[]>([]);
   const dragRef = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const chatLogRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ w: 1200, h: 900 });
 
-  useEffect(() => {
-    api.getProject(id).then((p) => {
-      setNotes(p.storyboard.notes);
-      setStrokes(p.storyboard.strokes);
-      setChat(p.storyboard.chat);
-      setLoading(false);
-    });
+  const load = useCallback(() => {
+    api
+      .getProject(id)
+      .then((p: ClientProject) => {
+        setNotes(p.storyboard.notes);
+        setStrokes(p.storyboard.strokes);
+        setChat(p.storyboard.chat);
+      })
+      .catch((e: unknown) => {
+        setLoadError(e instanceof Error ? e.message : "Couldn't load the storyboard.");
+      })
+      .finally(() => setLoading(false));
   }, [id]);
+
+    // The effect only kicks off the request; every setState lands in a
+  // promise callback, satisfying React's no-sync-setState-in-effect rule.
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  /** Retry from the error state — a click handler, so setState is fine. */
+  const retry = useCallback(() => {
+    setLoading(true);
+    setLoadError(null);
+    load();
+  }, [load]);
 
   // Keep the canvas's internal pixel grid matching its displayed CSS size
   // 1:1, so pointer coordinates (measured in CSS pixels) line up exactly
@@ -92,24 +139,41 @@ export default function StoryboardPage() {
     }
   }, [strokes]);
 
+  // canvasSize is intentionally a dependency: resizing the canvas clears its
+  // pixel buffer, so every resize needs a repaint from the stroke data.
   useEffect(() => {
     redraw();
   }, [redraw, canvasSize]);
 
   function scheduleSave(nextNotes: StoryboardNote[], nextStrokes: StoryboardStroke[]) {
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      api.saveStoryboard(id, { notes: nextNotes, strokes: nextStrokes });
+    setSaveState("saving");
+    saveTimer.current = setTimeout(async () => {
+      try {
+        await api.saveStoryboard(id, { notes: nextNotes, strokes: nextStrokes });
+        setSaveState("saved");
+      } catch (e) {
+        setSaveState("idle");
+        toast.error(e instanceof ApiError ? e.message : "Couldn't save the storyboard.");
+      }
     }, 600);
   }
 
   function addNote() {
+    if (notes.length >= MAX_NOTES) {
+      toast.error(`You've reached the limit of ${MAX_NOTES} notes.`);
+      return;
+    }
     const next = [...notes, makeNewNote()];
     setNotes(next);
     scheduleSave(next, strokes);
   }
 
   function updateNote(noteId: string, patch: Partial<StoryboardNote>) {
+    if (typeof patch.text === "string" && patch.text.length > MAX_NOTE_TEXT) {
+      toast.error(`Notes are limited to ${MAX_NOTE_TEXT} characters.`);
+      patch = { ...patch, text: patch.text.slice(0, MAX_NOTE_TEXT) };
+    }
     const next = notes.map((n) => (n.id === noteId ? { ...n, ...patch } : n));
     setNotes(next);
     scheduleSave(next, strokes);
@@ -145,6 +209,7 @@ export default function StoryboardPage() {
         prev.map((n) => (n.id === dragRef.current!.id ? { ...n, x, y } : n))
       );
     } else if (mode === "draw" && drawingRef.current) {
+      if (currentStrokeRef.current.length >= MAX_POINTS_PER_STROKE) return;
       const pt = boardPoint(e);
       currentStrokeRef.current.push(pt);
       const ctx = canvasRef.current?.getContext("2d");
@@ -170,6 +235,12 @@ export default function StoryboardPage() {
     } else if (mode === "draw" && drawingRef.current) {
       drawingRef.current = false;
       if (currentStrokeRef.current.length > 1) {
+        if (strokes.length >= MAX_STROKES) {
+          toast.error(`You've reached the limit of ${MAX_STROKES} strokes. Try clearing the drawing.`);
+          currentStrokeRef.current = [];
+          redraw();
+          return;
+        }
         const stroke: StoryboardStroke = {
           id: makeId(),
           points: currentStrokeRef.current,
@@ -191,7 +262,16 @@ export default function StoryboardPage() {
     currentStrokeRef.current = [boardPoint(e)];
   }
 
+  function undoStroke() {
+    if (strokes.length === 0) return;
+    const next = strokes.slice(0, -1);
+    setStrokes(next);
+    scheduleSave(notes, next);
+  }
+
   function clearDrawing() {
+    if (strokes.length === 0) return;
+    if (!confirm("Clear the entire sketch? This can't be undone.")) return;
     setStrokes([]);
     scheduleSave(notes, []);
   }
@@ -199,7 +279,6 @@ export default function StoryboardPage() {
   async function askAgent() {
     if (!question.trim()) return;
     setAsking(true);
-    setAskError(null);
     const canvasImageDataUrl =
       strokes.length > 0 ? canvasRef.current?.toDataURL("image/png") : undefined;
     const q = question.trim();
@@ -209,75 +288,124 @@ export default function StoryboardPage() {
       const { chat: updated } = await api.askStoryboardAgent(id, q, canvasImageDataUrl);
       setChat(updated);
     } catch (e) {
-      setAskError(e instanceof Error ? e.message : "The agent couldn't respond.");
+      toast.error(e instanceof ApiError ? e.message : "The agent couldn't respond.");
     } finally {
       setAsking(false);
     }
   }
 
+  useEffect(() => {
+    const log = chatLogRef.current;
+    if (log) log.scrollTop = log.scrollHeight;
+  }, [chat]);
+
   if (loading) {
-    return <div className="p-16 text-center text-neutral-400">Loading...</div>;
+    return (
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-8 sm:px-6">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-4 w-96 max-w-full" />
+        <Skeleton className="h-[65vh] w-full" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
+        <ErrorState message={loadError} onRetry={retry} />
+      </div>
+    );
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col px-6 py-8">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="mx-auto flex w-full max-w-5xl flex-col overflow-x-hidden px-4 py-8 sm:px-6">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-neutral-900">Storyboard</h1>
-          <p className="text-sm text-neutral-500">
+          <h1 className="text-2xl font-semibold text-ink">Storyboard</h1>
+          <p className="text-sm text-ink-muted">
             Scribble ideas, drag sticky notes around, and ask the agent what it thinks.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex rounded-lg border border-neutral-300 p-0.5">
-            <button
-              onClick={() => setMode("move")}
-              className={`rounded-md px-3 py-1 text-xs ${
-                mode === "move" ? "bg-neutral-900 text-white" : "text-neutral-500"
-              }`}
-            >
-              Move
-            </button>
-            <button
-              onClick={() => setMode("draw")}
-              className={`rounded-md px-3 py-1 text-xs ${
-                mode === "draw" ? "bg-neutral-900 text-white" : "text-neutral-500"
-              }`}
-            >
-              Draw
-            </button>
-          </div>
-          {mode === "draw" && (
-            <>
-              <input
-                type="color"
-                value={drawColor}
-                onChange={(e) => setDrawColor(e.target.value)}
-                className="h-8 w-8 rounded border border-neutral-300"
-              />
-              <button
-                onClick={clearDrawing}
-                className="rounded-lg border border-neutral-300 px-3 py-1.5 text-xs text-neutral-600 hover:border-neutral-500"
-              >
-                Clear drawing
-              </button>
-            </>
-          )}
-          <button
-            onClick={addNote}
-            className="rounded-lg bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-700"
-          >
-            + Sticky note
-          </button>
+        <div
+          className="text-xs text-ink-subtle"
+          role="status"
+          aria-live="polite"
+        >
+          {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : ""}
         </div>
       </div>
+
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="flex rounded-lg border border-line-strong bg-surface p-0.5">
+          <Button
+            variant={mode === "move" ? "primary" : "ghost"}
+            size="sm"
+            onClick={() => setMode("move")}
+            aria-pressed={mode === "move"}
+          >
+            <Hand className="h-3.5 w-3.5" aria-hidden />
+            Move
+          </Button>
+          <Button
+            variant={mode === "draw" ? "primary" : "ghost"}
+            size="sm"
+            onClick={() => setMode("draw")}
+            aria-pressed={mode === "draw"}
+          >
+            <Pencil className="h-3.5 w-3.5" aria-hidden />
+            Draw
+          </Button>
+        </div>
+        {mode === "draw" && (
+          <>
+            <label className="sr-only" htmlFor="pen-color">
+              Pen color
+            </label>
+            <input
+              id="pen-color"
+              type="color"
+              value={drawColor}
+              onChange={(e) => setDrawColor(e.target.value)}
+              className="h-9 w-9 rounded border border-line-strong bg-surface"
+            />
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={undoStroke}
+              disabled={strokes.length === 0}
+            >
+              <Undo2 className="h-3.5 w-3.5" aria-hidden />
+              Undo stroke
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={clearDrawing}
+              disabled={strokes.length === 0}
+            >
+              <Eraser className="h-3.5 w-3.5" aria-hidden />
+              Clear drawing
+            </Button>
+          </>
+        )}
+        <Button variant="primary" size="sm" onClick={addNote} className="ml-auto">
+          <Plus className="h-3.5 w-3.5" aria-hidden />
+          Sticky note
+        </Button>
+      </div>
+
+      <p className="sr-only">
+        The board below is a freehand sketch area. Switch to Draw mode and use a mouse,
+        touchscreen, or stylus to sketch; switch to Move mode to drag sticky notes. Sticky
+        note text is editable directly in each note&rsquo;s text box.
+      </p>
 
       <div
         ref={boardRef}
         onPointerMove={onBoardPointerMove}
         onPointerUp={onBoardPointerUp}
         onPointerDown={onBoardPointerDown}
-        className="relative h-[65vh] w-full overflow-hidden rounded-2xl border border-neutral-200 bg-[radial-gradient(circle,_#e5e5e5_1px,_transparent_1px)] [background-size:16px_16px]"
+        className="relative h-[65vh] w-full overflow-hidden rounded-2xl border border-line bg-surface-2 [background-image:radial-gradient(circle,_var(--color-line-strong)_1px,_transparent_1px)] [background-size:16px_16px]"
         style={{ touchAction: "none", cursor: mode === "draw" ? "crosshair" : "default" }}
       >
         <canvas
@@ -285,13 +413,23 @@ export default function StoryboardPage() {
           width={canvasSize.w}
           height={canvasSize.h}
           className="pointer-events-none absolute inset-0"
+          style={{ touchAction: "none" }}
         />
+        {notes.length === 0 && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
+            <EmptyState
+              icon={<StickyNote className="h-6 w-6" aria-hidden />}
+              title="Add your first note"
+              description="Drop a sticky note on the board to start mapping out scenes and ideas."
+            />
+          </div>
+        )}
         {notes.map((note) => (
           <div
             key={note.id}
             data-note
             onPointerDown={(e) => onNotePointerDown(e, note)}
-            className="absolute flex flex-col rounded-lg p-2 shadow-md"
+            className="absolute flex flex-col rounded-lg p-2 shadow-card"
             style={{
               left: note.x,
               top: note.y,
@@ -305,21 +443,29 @@ export default function StoryboardPage() {
               {NOTE_COLORS.map((c) => (
                 <button
                   key={c}
+                  type="button"
                   onClick={() => updateNote(note.id, { color: c })}
+                  aria-label={`Set note color to ${c}`}
+                  aria-pressed={note.color === c}
                   className="h-3 w-3 rounded-full border border-black/10"
                   style={{ backgroundColor: c }}
                 />
               ))}
               <button
+                type="button"
                 onClick={() => removeNote(note.id)}
-                className="ml-1 text-xs text-black/40 hover:text-red-600"
+                aria-label="Delete note"
+                className="ml-1 text-xs hover:opacity-70"
+                style={{ color: NOTE_TEXT_COLOR, opacity: 0.5 }}
               >
-                ✕
+                <X className="h-3 w-3" aria-hidden />
               </button>
             </div>
             <textarea
-              className="flex-1 resize-none border-none bg-transparent text-sm text-neutral-800 focus:outline-none"
+              className="flex-1 resize-none border-none bg-transparent text-sm focus:outline-none"
+              style={{ color: NOTE_TEXT_COLOR }}
               placeholder="..."
+              aria-label="Sticky note text"
               value={note.text}
               onPointerDown={(e) => e.stopPropagation()}
               onChange={(e) => updateNote(note.id, { text: e.target.value })}
@@ -328,63 +474,105 @@ export default function StoryboardPage() {
         ))}
       </div>
 
-      {/* Floating agent button + drawer */}
-      <button
+      {/* Floating agent toggle */}
+      <Button
+        variant="primary"
+        size="icon"
         onClick={() => setChatOpen((o) => !o)}
-        className="fixed bottom-6 right-6 flex h-14 w-14 items-center justify-center rounded-full bg-neutral-900 text-2xl text-white shadow-lg hover:bg-neutral-700"
-        title="Ask the agent"
+        aria-label={chatOpen ? "Close storyboard agent" : "Open storyboard agent"}
+        aria-expanded={chatOpen}
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-float"
       >
-        ✨
-      </button>
+        <MessageSquareText className="h-6 w-6" aria-hidden />
+      </Button>
 
       {chatOpen && (
-        <div className="fixed bottom-24 right-6 flex h-[28rem] w-96 flex-col rounded-2xl border border-neutral-200 bg-white shadow-xl">
-          <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3">
-            <span className="text-sm font-medium text-neutral-800">Storyboard agent</span>
-            <button onClick={() => setChatOpen(false)} className="text-neutral-400">
-              ✕
-            </button>
-          </div>
-          <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-sm">
-            {chat.length === 0 && (
-              <p className="text-neutral-400">
-                Ask things like &ldquo;what do you think of the story so far?&rdquo; or
-                &ldquo;any changes you&rsquo;d suggest?&rdquo; — it reads your sticky notes,
-                any sketch on the board, and your story bible.
-              </p>
-            )}
-            {chat.map((m, i) => (
-              <div
-                key={i}
-                className={`rounded-xl px-3 py-2 ${
-                  m.role === "user"
-                    ? "ml-6 bg-neutral-900 text-white"
-                    : "mr-6 bg-neutral-100 text-neutral-800"
-                }`}
-              >
-                {m.content}
-              </div>
-            ))}
-            {askError && <p className="text-red-500">{askError}</p>}
-          </div>
-          <div className="flex items-center gap-2 border-t border-neutral-100 p-3">
-            <input
-              className="flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none"
-              placeholder="Ask about the story..."
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && askAgent()}
-              disabled={asking}
+        <>
+          {/* Mobile scrim so the drawer reads as a sheet, not a floating box */}
+          <div
+            className="fixed inset-0 z-40 bg-ink/20 sm:hidden"
+            onClick={() => setChatOpen(false)}
+            aria-hidden
+          />
+          <Card
+            className="fixed inset-x-3 bottom-3 top-auto z-50 flex h-[70vh] flex-col overflow-hidden sm:inset-x-auto sm:bottom-24 sm:right-6 sm:h-[28rem] sm:w-96"
+          >
+            <CardHeader
+              title="Storyboard agent"
+              action={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setChatOpen(false)}
+                  aria-label="Close storyboard agent"
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </Button>
+              }
             />
-            <button
-              onClick={askAgent}
-              disabled={asking || !question.trim()}
-              className="rounded-lg bg-neutral-900 px-3 py-2 text-sm text-white disabled:opacity-50"
+            <div className="flex items-start gap-2 border-b border-line bg-surface-2 px-4 py-2 text-xs text-ink-subtle">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span>
+                Your sketch is only visible to vision-capable models. Check your{" "}
+                <Link href={`/project/${id}/settings`} className="underline underline-offset-2 hover:text-ink">
+                  model settings
+                </Link>
+                .
+              </span>
+            </div>
+            <div
+              ref={chatLogRef}
+              role="log"
+              aria-live="polite"
+              className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-sm"
             >
-              {asking ? "..." : "Ask"}
-            </button>
-          </div>
-        </div>
+              {chat.length === 0 && (
+                <p className="text-ink-subtle">
+                  Ask things like &ldquo;what do you think of the story so far?&rdquo; or
+                  &ldquo;any changes you&rsquo;d suggest?&rdquo; — it reads your sticky notes,
+                  any sketch on the board, and your story bible.
+                </p>
+              )}
+              {chat.map((m, i) => (
+                <div
+                  key={i}
+                  className={
+                    m.role === "user"
+                      ? "ml-6 rounded-xl bg-accent px-3 py-2 text-accent-ink"
+                      : "mr-6 rounded-xl bg-surface-2 px-3 py-2 text-ink"
+                  }
+                >
+                  {m.content}
+                </div>
+              ))}
+              {asking && <p className="text-ink-subtle">Thinking…</p>}
+            </div>
+            <div className="flex items-center gap-2 border-t border-line p-3">
+              <label className="sr-only" htmlFor="agent-question">
+                Ask about the story
+              </label>
+              <input
+                id="agent-question"
+                className="h-10 flex-1 rounded-lg border border-line bg-surface px-3 text-sm text-ink placeholder:text-ink-subtle focus:border-accent focus:outline-none"
+                placeholder="Ask about the story..."
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && !asking && askAgent()}
+                disabled={asking}
+              />
+              <Button
+                variant="primary"
+                size="icon"
+                onClick={askAgent}
+                disabled={asking || !question.trim()}
+                loading={asking}
+                aria-label="Send question"
+              >
+                {!asking && <Send className="h-4 w-4" aria-hidden />}
+              </Button>
+            </div>
+          </Card>
+        </>
       )}
     </div>
   );

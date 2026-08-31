@@ -1,9 +1,13 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import ProjectTopBar from "@/components/ProjectTopBar";
+import { Wordmark } from "@/components/Brand";
+import { ThemeToggle } from "@/components/ThemeProvider";
+import { UserMenu } from "@/components/UserMenu";
+import { cn } from "@/components/ui";
 
 const TABS = [
   { href: "bible", label: "Story Bible" },
@@ -20,37 +24,61 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b border-neutral-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-          <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-neutral-900">
-            <Image src="/logo.png" alt="" width={22} height={22} className="rounded-full" />
-            Inkdrop Studio
-          </Link>
-          {!isOnboarding && (
-            <nav className="flex gap-1">
+      <header className="sticky top-0 z-40 border-b border-line bg-paper/85 backdrop-blur">
+        <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <Link
+              href="/dashboard"
+              className="rounded-lg p-1 text-ink-subtle transition-colors hover:text-ink"
+              aria-label="Back to your projects"
+              title="Back to your projects"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+            <Wordmark href="/dashboard" size={22} className="hidden sm:inline-flex" />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <ThemeToggle className="hidden md:inline-flex" />
+            <UserMenu />
+          </div>
+        </div>
+
+        {!isOnboarding && (
+          <nav
+            aria-label="Project sections"
+            className="mx-auto w-full max-w-6xl overflow-x-auto px-4 sm:px-6"
+          >
+            <ul className="flex gap-1 pb-2">
               {TABS.map((tab) => {
                 const href = `/project/${params.id}/${tab.href}`;
                 const active = pathname?.startsWith(href);
                 return (
-                  <Link
-                    key={tab.href}
-                    href={href}
-                    className={`rounded-lg px-3 py-1.5 text-sm transition ${
-                      active
-                        ? "bg-neutral-900 text-white"
-                        : "text-neutral-600 hover:bg-neutral-100"
-                    }`}
-                  >
-                    {tab.label}
-                  </Link>
+                  <li key={tab.href}>
+                    <Link
+                      href={href}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        "block whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition-colors",
+                        active
+                          ? "bg-accent text-accent-ink font-medium"
+                          : "text-ink-muted hover:bg-surface-2 hover:text-ink"
+                      )}
+                    >
+                      {tab.label}
+                    </Link>
+                  </li>
                 );
               })}
-            </nav>
-          )}
-        </div>
+            </ul>
+          </nav>
+        )}
       </header>
+
       {!isOnboarding && <ProjectTopBar projectId={params.id} />}
-      <div className="flex-1 bg-neutral-50">{children}</div>
+      <main id="main" className="flex-1">
+        {children}
+      </main>
     </div>
   );
 }

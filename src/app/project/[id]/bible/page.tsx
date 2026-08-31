@@ -1,7 +1,9 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import { useCallback, useRef, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { toast } from "sonner";
+import { ChevronDown, Upload } from "lucide-react";
 import {
   DEEP_DIVE_QUESTIONS,
   ONBOARDING_QUESTIONS,
@@ -10,6 +12,14 @@ import {
 import { AnswerValue, SECTION_IDS, SectionId, StoryBible } from "@/lib/types";
 import QuestionCard, { emptyAnswer } from "@/components/QuestionCard";
 import { api } from "@/lib/api";
+import {
+  Badge,
+  Button,
+  Card,
+  ErrorState,
+  LoadingState,
+  Textarea,
+} from "@/components/ui";
 
 function isEmpty(answer: AnswerValue | undefined): boolean {
   return !answer || (answer.selected.length === 0 && !answer.custom.trim());
@@ -18,6 +28,7 @@ function isEmpty(answer: AnswerValue | undefined): boolean {
 export default function BiblePage() {
   const { id } = useParams<{ id: string }>();
   const [bible, setBible] = useState<StoryBible | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [openSection, setOpenSection] = useState<SectionId | null>("feel");
   const [openDeepDive, setOpenDeepDive] = useState<Record<string, boolean>>({});
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
@@ -25,20 +36,41 @@ export default function BiblePage() {
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState("");
   const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<string | null>(null);
-  const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    api.getProject(id).then((p) => setBible(p.storyBible));
+  const load = useCallback(() => {
+    api
+      .getProject(id)
+      .then((p) => setBible(p.storyBible))
+      .catch((e) => {
+        setLoadError(e instanceof Error ? e.message : "Couldn't load this project.");
+      });
   }, [id]);
+
+    // The effect only kicks off the request; every setState lands in a
+  // promise callback, satisfying React's no-sync-setState-in-effect rule.
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  /** Retry from the error state — a click handler, so setState is fine. */
+  const retry = useCallback(() => {
+    setLoadError(null);
+    setBible(null);
+    load();
+  }, [load]);
 
   async function save(next: StoryBible) {
     setBible(next);
     setStatus("saving");
-    await api.saveBible(id, next);
-    setStatus("saved");
-    setTimeout(() => setStatus("idle"), 1200);
+    try {
+      await api.saveBible(id, next);
+      setStatus("saved");
+      setTimeout(() => setStatus("idle"), 1200);
+    } catch (e) {
+      setStatus("idle");
+      toast.error(e instanceof Error ? e.message : "Couldn't save your changes.");
+    }
   }
 
   function updateAnswer(section: SectionId, qid: string, value: AnswerValue) {
@@ -60,26 +92,40 @@ export default function BiblePage() {
   async function runImport() {
     if (!importText.trim()) return;
     setImporting(true);
-    setImportError(null);
-    setImportResult(null);
     try {
       const { project, filledCount } = await api.extractBibleFromText(id, importText);
       setBible(project.storyBible);
-      setImportResult(
-        filledCount > 0
-          ? `Filled in ${filledCount} question${filledCount === 1 ? "" : "s"} from your text. Anything left with a red asterisk below still needs your input.`
-          : "Couldn't confidently map anything from that text onto the questionnaire — you may need to fill more in by hand."
-      );
+      if (filledCount > 0) {
+        toast.success(
+          `Filled in ${filledCount} answer${filledCount === 1 ? "" : "s"} from your notes.`
+        );
+      } else {
+        toast.error(
+          "Couldn't confidently map anything from that text onto the questionnaire — you may need to fill more in by hand."
+        );
+      }
       setImportText("");
     } catch (e) {
-      setImportError(e instanceof Error ? e.message : "Import failed.");
+      toast.error(e instanceof Error ? e.message : "Import failed.");
     } finally {
       setImporting(false);
     }
   }
 
+  if (loadError) {
+    return (
+      <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
+        <ErrorState message={loadError} onRetry={retry} />
+      </div>
+    );
+  }
+
   if (!bible) {
-    return <div className="p-16 text-center text-neutral-400">Loading...</div>;
+    return (
+      <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
+        <LoadingState label="Loading your story bible…" />
+      </div>
+    );
   }
 
   const missingBySection: Record<SectionId, number> = SECTION_IDS.reduce(
@@ -93,56 +139,58 @@ export default function BiblePage() {
   const totalMissing = Object.values(missingBySection).reduce((a, b) => a + b, 0);
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-6 py-10">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
+      <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-neutral-900">Story Bible</h1>
-          <p className="mt-1 text-sm text-neutral-500">
-            Everything here is used as context whenever a chapter is generated.
-            Edit anytime — nothing is locked in.
+          <h1 className="text-2xl font-semibold text-ink">Story Bible</h1>
+          <p className="mt-1 text-sm text-ink-muted">
+            Everything here is used as context whenever a chapter is generated. Edit
+            anytime — nothing is locked in.
             {totalMissing > 0 && (
-              <span className="ml-1 text-red-500">
+              <span className="ml-1 text-danger">
                 {totalMissing} essential question{totalMissing === 1 ? "" : "s"} still
                 unanswered.
               </span>
             )}
           </p>
         </div>
-        <span className="text-xs text-neutral-400">
-          {status === "saving" ? "Saving..." : status === "saved" ? "Saved" : ""}
+        <span className="text-xs text-ink-subtle" role="status" aria-live="polite">
+          {status === "saving" ? "Saving…" : status === "saved" ? "Saved" : ""}
         </span>
       </div>
 
-      <div className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-medium text-neutral-700">
-              Already have a story bible?
-            </h2>
-            <p className="text-xs text-neutral-400">
-              Paste your notes, or upload a story-bible.md / text file — Inkdrop will
-              map what it can onto the questionnaire below.
+      <Card className="mb-6 p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="text-sm font-medium text-ink">Already have a story bible?</h2>
+            <p className="text-xs text-ink-subtle">
+              Paste your notes, or upload a story-bible.md / text file — Inkdrop will map
+              what it can onto the questionnaire below.
             </p>
           </div>
-          <div className="flex gap-2">
-            <button
+          <div className="flex shrink-0 gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => fileInputRef.current?.click()}
-              className="rounded-xl border border-neutral-300 px-3 py-1.5 text-xs text-neutral-700 hover:border-neutral-500"
             >
+              <Upload className="h-3.5 w-3.5" />
               Upload file
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => setShowImport((s) => !s)}
-              className="rounded-xl border border-neutral-300 px-3 py-1.5 text-xs text-neutral-700 hover:border-neutral-500"
             >
               {showImport ? "Hide" : "Paste text"}
-            </button>
+            </Button>
           </div>
           <input
             ref={fileInputRef}
             type="file"
             accept=".md,.txt,text/plain,text/markdown"
             className="hidden"
+            aria-label="Upload story bible file"
             onChange={async (e) => {
               const file = e.target.files?.[0];
               e.target.value = "";
@@ -155,29 +203,25 @@ export default function BiblePage() {
         </div>
         {showImport && (
           <div className="mt-4 space-y-3">
-            <textarea
-              className="w-full rounded-xl border border-neutral-300 p-3 text-sm focus:border-neutral-900 focus:outline-none"
+            <Textarea
               rows={8}
-              placeholder="Paste your story bible, notes, or a paragraph describing your novel..."
+              aria-label="Paste your story bible or notes"
+              placeholder="Paste your story bible, notes, or a paragraph describing your novel…"
               value={importText}
               onChange={(e) => setImportText(e.target.value)}
             />
-            <div className="flex items-center justify-between">
-              <div className="text-xs">
-                {importError && <span className="text-red-500">{importError}</span>}
-                {importResult && <span className="text-neutral-500">{importResult}</span>}
-              </div>
-              <button
+            <div className="flex justify-end">
+              <Button
                 onClick={runImport}
-                disabled={importing || !importText.trim()}
-                className="rounded-xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50"
+                disabled={!importText.trim()}
+                loading={importing}
               >
-                {importing ? "Reading..." : "Extract answers"}
-              </button>
+                Extract answers
+              </Button>
             </div>
           </div>
         )}
-      </div>
+      </Card>
 
       <div className="space-y-3">
         {SECTION_IDS.map((sectionId) => {
@@ -187,32 +231,38 @@ export default function BiblePage() {
           const isOpen = openSection === sectionId;
           const showDeepDive = openDeepDive[sectionId];
           const missing = missingBySection[sectionId];
+          const panelId = `bible-section-${sectionId}`;
 
           return (
-            <div
-              key={sectionId}
-              className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm"
-            >
+            <Card key={sectionId} className="overflow-hidden">
               <button
                 onClick={() => setOpenSection(isOpen ? null : sectionId)}
-                className="flex w-full items-center justify-between px-5 py-4 text-left"
+                className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
+                aria-expanded={isOpen}
+                aria-controls={panelId}
               >
-                <div>
-                  <div className="flex items-center gap-2 font-medium text-neutral-900">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 font-medium text-ink">
                     {meta.label}
                     {missing > 0 && (
-                      <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-500">
-                        {missing} missing
-                      </span>
+                      <Badge tone="danger">{missing} missing</Badge>
                     )}
                   </div>
-                  <div className="text-xs text-neutral-400">{meta.blurb}</div>
+                  <div className="text-xs text-ink-subtle">{meta.blurb}</div>
                 </div>
-                <span className="text-neutral-400">{isOpen ? "−" : "+"}</span>
+                <ChevronDown
+                  className={`h-4 w-4 shrink-0 text-ink-subtle transition-transform ${
+                    isOpen ? "rotate-180" : ""
+                  }`}
+                  aria-hidden
+                />
               </button>
 
               {isOpen && (
-                <div className="space-y-8 border-t border-neutral-100 px-5 py-6">
+                <div
+                  id={panelId}
+                  className="space-y-8 border-t border-line px-5 py-6"
+                >
                   {essentials.map((q) => (
                     <QuestionCard
                       key={q.id}
@@ -224,20 +274,23 @@ export default function BiblePage() {
                   ))}
 
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-neutral-700">
+                    <label
+                      htmlFor={`${panelId}-notes`}
+                      className="mb-1 block text-sm font-medium text-ink"
+                    >
                       Freeform notes for this section
                     </label>
-                    <textarea
-                      className="w-full rounded-xl border border-neutral-300 p-3 text-sm focus:border-neutral-900 focus:outline-none"
+                    <Textarea
+                      id={`${panelId}-notes`}
                       rows={3}
-                      placeholder="Anything else worth capturing here..."
+                      placeholder="Anything else worth capturing here…"
                       defaultValue={bible[sectionId].notes}
                       onBlur={(e) => updateNotes(sectionId, e.target.value)}
                     />
                   </div>
 
                   {deepDive.length > 0 && (
-                    <div className="border-t border-dashed border-neutral-200 pt-5">
+                    <div className="border-t border-dashed border-line pt-5">
                       <button
                         onClick={() =>
                           setOpenDeepDive((prev) => ({
@@ -245,7 +298,7 @@ export default function BiblePage() {
                             [sectionId]: !prev[sectionId],
                           }))
                         }
-                        className="text-sm font-medium text-neutral-500 underline hover:text-neutral-800"
+                        className="text-sm font-medium text-ink-muted underline hover:text-ink"
                       >
                         {showDeepDive
                           ? "Hide deep-dive questions"
@@ -267,7 +320,7 @@ export default function BiblePage() {
                   )}
                 </div>
               )}
-            </div>
+            </Card>
           );
         })}
       </div>
