@@ -11,10 +11,12 @@ export const claudeProvider: AIProvider = {
   id: "anthropic",
   label: "Claude (Anthropic)",
   defaultModel: "claude-sonnet-4-5-20250929",
+  docsUrl: "https://console.anthropic.com/settings/keys",
+  keyHint: "Starts with sk-ant-",
   models: [
-    { id: "claude-sonnet-4-5-20250929", label: "Claude Sonnet 4.5" },
-    { id: "claude-opus-4-1-20250805", label: "Claude Opus 4.1" },
-    { id: "claude-3-5-haiku-20241022", label: "Claude Haiku 3.5" },
+    { id: "claude-sonnet-4-5-20250929", label: "Claude Sonnet 4.5", vision: true },
+    { id: "claude-opus-4-1-20250805", label: "Claude Opus 4.1", vision: true },
+    { id: "claude-3-5-haiku-20241022", label: "Claude Haiku 3.5", vision: true },
   ],
   async generateChapter({
     apiKey,
@@ -22,9 +24,11 @@ export const claudeProvider: AIProvider = {
     systemPrompt,
     userPrompt,
     imageDataUrl,
+    maxTokens,
+    signal,
     onChunk,
   }: GenerateChapterRequest): Promise<string> {
-    const client = new Anthropic({ apiKey });
+    const client = new Anthropic({ apiKey, maxRetries: 2 });
     let full = "";
 
     const image = imageDataUrl ? parseDataUrl(imageDataUrl) : null;
@@ -46,12 +50,15 @@ export const claudeProvider: AIProvider = {
         ]
       : userPrompt;
 
-    const stream = client.messages.stream({
-      model,
-      max_tokens: 8000,
-      system: systemPrompt,
-      messages: [{ role: "user", content }],
-    });
+    const stream = client.messages.stream(
+      {
+        model,
+        max_tokens: maxTokens ?? 8000,
+        system: systemPrompt,
+        messages: [{ role: "user", content }],
+      },
+      { signal }
+    );
     stream.on("text", (text) => {
       full += text;
       onChunk(text);
