@@ -1,53 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getProject, saveProject } from "@/lib/store";
+import { toClientProject, updateProject } from "@/lib/repo/projects";
 import { getProvider, resolveApiKey } from "@/lib/ai/providers";
 import { extractBibleAnswers } from "@/lib/ai/extractBible";
 import { findQuestion } from "@/lib/questionnaire";
-import { AnswerValue } from "@/lib/types";
+import { AnswerValue, StoryBible } from "@/lib/types";
+import { extractSchema } from "@/lib/validation";
+import { ApiProblem, handle, notFound, parseBody, requireProject } from "@/lib/apiHelpers";
+
+export const runtime = "nodejs";
+export const maxDuration = 120;
 
 function isEmpty(answer: AnswerValue | undefined): boolean {
   return !answer || (answer.selected.length === 0 && !answer.custom.trim());
 }
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const project = getProject(id);
-  if (!project) return NextResponse.json({ error: "not found" }, { status: 404 });
+export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  return handle(async () => {
+    const { userId, project } = await requireProject(ctx);
+    const { text } = await parseBody(req, extractSchema);
 
-  const { text } = await req.json().catch(() => ({ text: "" }));
-  if (!text || typeof text !== "string" || !text.trim()) {
-    return NextResponse.json({ error: "No text provided." }, { status: 400 });
-  }
+    const provider = getProvider(project.aiSettings.provider);
+    const model = project.aiSettings.model || provider.defaultModel;
+    const apiKey = resolveApiKey(project.aiSettings.provider, project.aiSettings.apiKeys);
+    if (!apiKey) {
+      throw new ApiProblem(
+        400,
+        `No API key configured for ${provider.label}. Add one in Settings to use text import.`
+      );
+    }
 
-  const provider = getProvider(project.aiSettings.provider);
-  const model = project.aiSettings.model || provider.defaultModel;
-  const apiKey = resolveApiKey(project.aiSettings.provider, project.aiSettings.apiKeys);
-  if (!apiKey) {
-    return NextResponse.json(
-      {
-        error: `No API key configured for ${provider.label}. Add one in Settings to use text import.`,
-      },
-      { status: 400 }
-    );
-  }
+    const extracted = await extractBibleAnswers(provider, { apiKey, model, text });
 
-  const extracted = await extractBibleAnswers(provider, { apiKey, model, text });
+    // Work on a copy so a failure part-way through can't leave the stored
+    // bible half-updated.
+    const storyBible: StoryBible = JSON.parse(JSON.stringify(project.storyBible));
+    let filledCount = 0;
+    for (const [qid, value] of Object.entries(extracted)) {
+      const question = findQuestion(qid);
+      if (!question) continue;
+      const section = storyBible[question.section];
+      // Never clobber an answer the author already gave.
+      if (!isEmpty(section.answers[qid])) continue;
+      section.answers[qid] = value;
+      filledCount++;
+    }
 
-  let filledCount = 0;
-  for (const [qid, value] of Object.entries(extracted)) {
-    const question = findQuestion(qid);
-    if (!question) continue;
-    const section = project.storyBible[question.section];
-    const existing = section.answers[qid];
-    // Never clobber an answer the author already gave.
-    if (!isEmpty(existing)) continue;
-    section.answers[qid] = value;
-    filledCount++;
-  }
-
-  saveProject(project);
-  return NextResponse.json({ project, filledCount });
+    const updated = await updateProject(project.id, userId, { storyBible });
+    if (!updated) return notFound("Project not found.");
+    return NextResponse.json({ project: toClientProject(updated), filledCount });
+  });
 }

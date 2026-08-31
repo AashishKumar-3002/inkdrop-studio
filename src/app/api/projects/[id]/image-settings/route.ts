@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getProject, saveProject } from "@/lib/store";
+import { toClientProject, updateProject } from "@/lib/repo/projects";
+import { mergeImageSettings } from "@/lib/settings";
+import { imageSettingsSchema } from "@/lib/validation";
+import { handle, notFound, parseBody, requireProject } from "@/lib/apiHelpers";
 
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const project = getProject(id);
-  if (!project) return NextResponse.json({ error: "not found" }, { status: 404 });
-  const patch = await req.json();
-  project.imageSettings = { ...project.imageSettings, ...patch };
-  saveProject(project);
-  return NextResponse.json(project);
+export const runtime = "nodejs";
+
+export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  return handle(async () => {
+    const { userId, project } = await requireProject(ctx);
+    const patch = await parseBody(req, imageSettingsSchema);
+    const updated = await updateProject(project.id, userId, {
+      imageSettings: mergeImageSettings(project.imageSettings, patch),
+    });
+    if (!updated) return notFound("Project not found.");
+    return NextResponse.json(toClientProject(updated));
+  });
 }

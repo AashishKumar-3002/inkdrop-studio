@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createProject, listProjects } from "@/lib/store";
+import { createProject, listProjects, toClientProject } from "@/lib/repo/projects";
+import { createProjectSchema } from "@/lib/validation";
+import { handle, parseBody, requireUserId } from "@/lib/apiHelpers";
+
+export const runtime = "nodejs";
 
 export async function GET() {
-  return NextResponse.json(listProjects());
+  return handle(async () => {
+    const userId = await requireUserId();
+    return NextResponse.json(await listProjects(userId));
+  });
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => ({}));
-  const project = createProject(body.name ?? "Untitled Novel");
-  return NextResponse.json(project, { status: 201 });
+  return handle(async () => {
+    const userId = await requireUserId();
+    const { name } = await parseBody(req, createProjectSchema);
+    const project = await createProject(userId, name ?? "Untitled Novel");
+    return NextResponse.json(toClientProject(project), { status: 201 });
+  });
 }

@@ -1,25 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getProject } from "@/lib/store";
+import { handle, requireProject } from "@/lib/apiHelpers";
+
+export const runtime = "nodejs";
 
 /**
- * Exports the full project as a portable `.inkdrop.json` file — the format
- * accepted by POST /api/projects/import. This is the whole project: story
- * bible, chapters, settings (API keys included, since this is a local,
- * single-user prototype — the README calls this out).
+ * Exports the project as a portable `.inkdrop.json` file — the format
+ * accepted by POST /api/projects/import.
+ *
+ * API keys are stripped: an export is a file people email to a
+ * collaborator or move between instances, and it must never carry
+ * credentials along with it.
  */
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const project = getProject(id);
-  if (!project) return NextResponse.json({ error: "not found" }, { status: 404 });
+export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  return handle(async () => {
+    const { project } = await requireProject(ctx, { withChapters: true });
 
-  const filename = `${project.name.replace(/[^a-z0-9-_]+/gi, "_") || "project"}.inkdrop.json`;
-  return new NextResponse(JSON.stringify(project, null, 2), {
-    headers: {
-      "Content-Type": "application/json",
-      "Content-Disposition": `attachment; filename="${filename}"`,
-    },
+    // userId is an internal ownership column; an export is a portable file
+    // that gets re-owned by whoever imports it.
+    const payload = {
+      ...project,
+      userId: undefined,
+      aiSettings: { ...project.aiSettings, apiKeys: {} },
+      imageSettings: { ...project.imageSettings, apiKey: "" },
+      exportedAt: new Date().toISOString(),
+      formatVersion: 2,
+    };
+
+    const filename = `${project.name.replace(/[^a-z0-9-_]+/gi, "_") || "project"}.inkdrop.json`;
+    return new NextResponse(JSON.stringify(payload, null, 2), {
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Disposition": `attachment; filename="${filename}"`,
+      },
+    });
   });
 }

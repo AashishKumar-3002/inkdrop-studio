@@ -1,35 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deleteProject, getProject, saveProject } from "@/lib/store";
+import { deleteProject, toClientProject, updateProject } from "@/lib/repo/projects";
+import { updateProjectSchema } from "@/lib/validation";
+import { handle, notFound, parseBody, requireProject } from "@/lib/apiHelpers";
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const project = getProject(id);
-  if (!project) return NextResponse.json({ error: "not found" }, { status: 404 });
-  return NextResponse.json(project);
+export const runtime = "nodejs";
+
+export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  return handle(async () => {
+    const { project } = await requireProject(ctx, { withChapters: true });
+    return NextResponse.json(toClientProject(project));
+  });
 }
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const project = getProject(id);
-  if (!project) return NextResponse.json({ error: "not found" }, { status: 404 });
-  const patch = await req.json();
-  const updated = { ...project, ...patch, id: project.id };
-  saveProject(updated);
-  return NextResponse.json(updated);
+export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  return handle(async () => {
+    const { userId, project } = await requireProject(ctx);
+    const patch = await parseBody(req, updateProjectSchema);
+    const updated = await updateProject(project.id, userId, patch);
+    if (!updated) return notFound("Project not found.");
+    return NextResponse.json(toClientProject(updated));
+  });
 }
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
-  const ok = deleteProject(id);
-  if (!ok) return NextResponse.json({ error: "not found" }, { status: 404 });
-  return NextResponse.json({ ok: true });
+  return handle(async () => {
+    const { userId, project } = await requireProject(ctx);
+    const ok = await deleteProject(project.id, userId);
+    if (!ok) return notFound("Project not found.");
+    return NextResponse.json({ ok: true });
+  });
 }

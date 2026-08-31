@@ -1,61 +1,60 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getProject, saveProject } from "@/lib/store";
+import { deleteChapter, getChapter, updateChapter } from "@/lib/repo/projects";
+import { updateChapterSchema } from "@/lib/validation";
+import {
+  handle,
+  locked,
+  notFound,
+  parseBody,
+  requireChapterContext,
+} from "@/lib/apiHelpers";
 
-/** Fields that a locked chapter refuses to have changed, unless the same
- * patch is also unlocking it. */
+export const runtime = "nodejs";
+
+/** Fields a locked chapter refuses to have changed, unless the same patch
+ * is also unlocking it. Enforced server-side, not just in the UI. */
 const PROTECTED_FIELDS = ["idea", "content", "title"] as const;
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string; chapterId: string }> }
+  ctx: { params: Promise<{ id: string; chapterId: string }> }
 ) {
-  const { id, chapterId } = await params;
-  const project = getProject(id);
-  if (!project) return NextResponse.json({ error: "not found" }, { status: 404 });
-  const chapter = project.chapters.find((c) => c.id === chapterId);
-  if (!chapter) return NextResponse.json({ error: "chapter not found" }, { status: 404 });
-  const patch = await req.json();
+  return handle(async () => {
+    const { userId, project, chapterId } = await requireChapterContext(ctx);
+    const found = await getChapter(project.id, chapterId, userId);
+    if (!found) return notFound("Chapter not found.");
+    const { chapter } = found;
 
-  const isUnlocking = patch.locked === false;
-  if (chapter.locked && !isUnlocking) {
-    const attemptsProtectedEdit = PROTECTED_FIELDS.some(
-      (field) => field in patch && patch[field] !== chapter[field]
-    );
-    if (attemptsProtectedEdit) {
-      return NextResponse.json(
-        { error: "This chapter is locked. Unlock it before editing." },
-        { status: 409 }
+    const patch = await parseBody(req, updateChapterSchema);
+
+    const isUnlocking = patch.locked === false;
+    if (chapter.locked && !isUnlocking) {
+      const attemptsProtectedEdit = PROTECTED_FIELDS.some(
+        (field) => field in patch && patch[field] !== chapter[field]
       );
+      if (attemptsProtectedEdit) {
+        return locked("This chapter is locked. Unlock it before editing.");
+      }
     }
-  }
 
-  Object.assign(chapter, patch);
-  if (typeof chapter.content === "string") {
-    chapter.wordCount = chapter.content.trim()
-      ? chapter.content.trim().split(/\s+/).length
-      : 0;
-  }
-  chapter.updatedAt = new Date().toISOString();
-  saveProject(project);
-  return NextResponse.json(chapter);
+    const updated = await updateChapter(project.id, chapterId, patch);
+    if (!updated) return notFound("Chapter not found.");
+    return NextResponse.json(updated);
+  });
 }
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: Promise<{ id: string; chapterId: string }> }
+  ctx: { params: Promise<{ id: string; chapterId: string }> }
 ) {
-  const { id, chapterId } = await params;
-  const project = getProject(id);
-  if (!project) return NextResponse.json({ error: "not found" }, { status: 404 });
-  const chapter = project.chapters.find((c) => c.id === chapterId);
-  if (chapter?.locked) {
-    return NextResponse.json(
-      { error: "This chapter is locked. Unlock it before deleting." },
-      { status: 409 }
-    );
-  }
-  project.chapters = project.chapters.filter((c) => c.id !== chapterId);
-  project.chapters.forEach((c, i) => (c.index = i + 1));
-  saveProject(project);
-  return NextResponse.json({ ok: true });
+  return handle(async () => {
+    const { userId, project, chapterId } = await requireChapterContext(ctx);
+    const found = await getChapter(project.id, chapterId, userId);
+    if (!found) return notFound("Chapter not found.");
+    if (found.chapter.locked) {
+      return locked("This chapter is locked. Unlock it before deleting.");
+    }
+    await deleteChapter(project.id, chapterId);
+    return NextResponse.json({ ok: true });
+  });
 }

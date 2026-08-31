@@ -1,22 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { importProject } from "@/lib/store";
+import { importProject, toClientProject } from "@/lib/repo/projects";
+import { importProjectSchema } from "@/lib/validation";
+import { ApiProblem, handle, parseBody, requireUserId } from "@/lib/apiHelpers";
+import type { Project } from "@/lib/types";
+
+export const runtime = "nodejs";
+export const maxDuration = 120;
 
 /**
- * Imports a project from an exported `.inkdrop.json` file (see the matching
- * export in /api/projects/[id]/export). Always creates a new project with a
- * fresh id — importing never overwrites an existing one.
+ * Imports a project from an exported `.inkdrop.json` file. Always creates a
+ * new project owned by the importer — it never overwrites an existing one,
+ * and never adopts credentials from the file.
  */
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => null);
-  if (!body || typeof body !== "object") {
-    return NextResponse.json({ error: "Invalid project file" }, { status: 400 });
-  }
-  if (!body.storyBible || !Array.isArray(body.chapters)) {
-    return NextResponse.json(
-      { error: "This doesn't look like an Inkdrop project export." },
-      { status: 400 }
+  return handle(async () => {
+    const userId = await requireUserId();
+    const body = await parseBody(req, importProjectSchema);
+
+    if (!body.storyBible || typeof body.storyBible !== "object") {
+      throw new ApiProblem(400, "This doesn't look like an Inkdrop project export.");
+    }
+
+    const project = await importProject(
+      userId,
+      body as unknown as Partial<Project>,
+      body.__importName
     );
-  }
-  const project = importProject(body, body.__importName);
-  return NextResponse.json(project, { status: 201 });
+    return NextResponse.json(toClientProject(project), { status: 201 });
+  });
 }

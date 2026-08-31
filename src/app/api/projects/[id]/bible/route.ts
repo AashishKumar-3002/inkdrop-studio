@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getProject, saveProject } from "@/lib/store";
+import { toClientProject, updateProject } from "@/lib/repo/projects";
+import { bibleUpdateSchema } from "@/lib/validation";
+import { handle, notFound, parseBody, requireProject } from "@/lib/apiHelpers";
 
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const project = getProject(id);
-  if (!project) return NextResponse.json({ error: "not found" }, { status: 404 });
-  const body = await req.json();
-  project.storyBible = body.storyBible ?? project.storyBible;
-  if (typeof body.onboardingComplete === "boolean") {
-    project.onboardingComplete = body.onboardingComplete;
-  }
-  saveProject(project);
-  return NextResponse.json(project);
+export const runtime = "nodejs";
+
+export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  return handle(async () => {
+    const { userId, project } = await requireProject(ctx);
+    const body = await parseBody(req, bibleUpdateSchema);
+    const updated = await updateProject(project.id, userId, {
+      storyBible: body.storyBible ?? project.storyBible,
+      ...(typeof body.onboardingComplete === "boolean"
+        ? { onboardingComplete: body.onboardingComplete }
+        : {}),
+    });
+    if (!updated) return notFound("Project not found.");
+    return NextResponse.json(toClientProject(updated));
+  });
 }
