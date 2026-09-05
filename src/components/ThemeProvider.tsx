@@ -108,11 +108,14 @@ export function ThemeToggle({ className }: { className?: string }) {
   const { theme, setTheme } = useTheme();
   return (
     <div
-      className={cn("inline-flex items-center border border-line", className)}
+      className={cn(
+        "inline-flex items-center gap-0.5 rounded-lg border border-line bg-surface-2 p-0.5",
+        className
+      )}
       role="group"
       aria-label="Colour theme"
     >
-      {OPTIONS.map(({ value, label, Icon }, i) => (
+      {OPTIONS.map(({ value, label, Icon }) => (
         <button
           key={value}
           type="button"
@@ -121,10 +124,9 @@ export function ThemeToggle({ className }: { className?: string }) {
           aria-pressed={theme === value}
           title={label}
           className={cn(
-            "p-1.5 transition-colors",
-            i > 0 && "border-l border-line",
+            "rounded-[6px] p-1 transition-colors",
             theme === value
-              ? "bg-accent text-accent-ink"
+              ? "bg-surface text-ink shadow-xs"
               : "text-ink-subtle hover:text-ink"
           )}
         >
