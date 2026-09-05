@@ -2,21 +2,22 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
 import { toast } from "sonner";
-import { ExternalLink, ArrowLeft } from "lucide-react";
+import { ExternalLink, Minus, Plus } from "lucide-react";
 import { api, ApiError, type ProviderInfo } from "@/lib/api";
 import { AIProviderId, ClientProject } from "@/lib/types";
 import {
   Badge,
   Button,
-  Card,
-  CardHeader,
   ErrorState,
   Field,
   Input,
+  Kicker,
+  Lbl,
+  PageHeader,
   Select,
   Skeleton,
+  Ticks,
 } from "@/components/ui";
 
 type SaveStatus = "idle" | "saving" | "saved";
@@ -114,7 +115,7 @@ export default function SettingsPage() {
 
   if (loadError) {
     return (
-      <div className="mx-auto w-full max-w-2xl px-6 py-10">
+      <div className="px-4 py-10 sm:px-10">
         <ErrorState message={loadError} onRetry={load} />
       </div>
     );
@@ -122,11 +123,10 @@ export default function SettingsPage() {
 
   if (!project || !providers) {
     return (
-      <div className="mx-auto w-full max-w-2xl space-y-6 px-6 py-10">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64" />
-        <Skeleton className="h-40" />
-        <Skeleton className="h-56" />
+      <div className="space-y-4 px-4 py-10 sm:px-10">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-4 w-96 max-w-full" />
+        <Skeleton className="mt-6 h-96" />
       </div>
     );
   }
@@ -138,30 +138,31 @@ export default function SettingsPage() {
   const visionModels = provider.models.filter((m) => m.vision).map((m) => m.label);
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-6 py-10">
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <div>
-          <Link
-            href="/dashboard"
-            className="mb-2 inline-flex items-center gap-1 text-xs text-ink-muted hover:text-ink"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Dashboard
-          </Link>
-          <h1 className="text-2xl font-semibold tracking-tight text-ink">Settings</h1>
-        </div>
-        <span className="text-xs text-ink-subtle" role="status" aria-live="polite">
-          {status === "saving" ? "Saving…" : status === "saved" ? "Saved" : ""}
-        </span>
-      </div>
+    <div className="px-4 py-10 sm:px-10">
+      <PageHeader
+        kicker="Per project · keys never leave your workspace"
+        title="Settings"
+        size={52}
+        actions={
+          // Only speaks up while something is actually happening — a
+          // permanent "Idle" chip is noise, not status.
+          <span aria-live="polite" className="min-h-[22px]">
+            {status !== "idle" && (
+              <Badge tone={status === "saving" ? "outline" : "accent"}>
+                {status === "saving" ? "Saving…" : "Saved"}
+              </Badge>
+            )}
+          </span>
+        }
+      />
 
-      <div className="space-y-6">
-        <Card>
-          <CardHeader
-            title="Writing model"
-            description="Which AI provider and model generate your chapters."
-          />
-          <div className="space-y-5 p-5">
+      <div className="mt-8 grid gap-10 border-t-2 border-line pt-8 lg:grid-cols-2 lg:gap-0 lg:pt-10">
+        {/* ---------------------------------------------------------- */}
+        {/* Left: text generation                                       */}
+        {/* ---------------------------------------------------------- */}
+        <div className="min-w-0 lg:border-r-2 lg:border-line lg:pr-10">
+          <Kicker className="mb-5">Text generation</Kicker>
+          <div className="space-y-5">
             <Field label="Provider" htmlFor="ai-provider">
               <Select
                 id="ai-provider"
@@ -197,8 +198,8 @@ export default function SettingsPage() {
                 ))}
               </Select>
               {provider.models.some((m) => m.vision) && (
-                <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                  <Badge tone="accent">vision</Badge>
+                <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
+                  <Badge tone="accent">Vision</Badge>
                   <span className="text-xs text-ink-subtle">
                     The storyboard sketch feature needs a vision-capable model
                     {visionModels.length > 0 && ` (e.g. ${visionModels.join(", ")})`}.
@@ -239,7 +240,7 @@ export default function SettingsPage() {
                   value={aiKeyDraft}
                   onChange={(e) => setAiKeyDraft(e.target.value)}
                 />
-                {keySaved && <Badge tone="success">Key saved</Badge>}
+                {keySaved && <Badge tone="accent">Key saved</Badge>}
               </div>
               <div className="mt-2 flex gap-2">
                 <Button
@@ -272,33 +273,70 @@ export default function SettingsPage() {
                 )}
               </div>
             </Field>
-
-            <Field
-              label="Full-text context window"
-              htmlFor="context-window"
-              hint="How many of the most recent chapters are sent in full when generating the next one. You can also adjust this from the bar at the top of every project page. Older chapters fall back to the hidden story-so-far summary below."
-            >
-              <Input
-                id="context-window"
-                type="number"
-                min={1}
-                max={10}
-                className="w-24"
-                value={aiSettings.fullContextWindow}
-                onChange={(e) =>
-                  updateAiSettings({ fullContextWindow: Number(e.target.value) || 1 })
-                }
-              />
-            </Field>
           </div>
-        </Card>
 
-        <Card>
-          <CardHeader
-            title="Hidden story-so-far summary"
-            description="Continuity notes kept outside the full-text window."
+          <hr className="my-8 h-0.5 border-0 bg-line" />
+
+          <Lbl>Full-text context window</Lbl>
+          <div className="mt-4 flex items-center gap-4">
+            <Button
+              variant="secondary"
+              size="icon"
+              aria-label="Decrease context window"
+              disabled={aiSettings.fullContextWindow <= 1}
+              onClick={() =>
+                updateAiSettings({
+                  fullContextWindow: Math.max(1, aiSettings.fullContextWindow - 1),
+                })
+              }
+            >
+              <Minus className="h-4 w-4" aria-hidden />
+            </Button>
+            <span className="disp tnum w-10 text-center text-[32px]" aria-hidden>
+              {aiSettings.fullContextWindow}
+            </span>
+            <Button
+              variant="secondary"
+              size="icon"
+              aria-label="Increase context window"
+              disabled={aiSettings.fullContextWindow >= 10}
+              onClick={() =>
+                updateAiSettings({
+                  fullContextWindow: Math.min(10, aiSettings.fullContextWindow + 1),
+                })
+              }
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+            </Button>
+            <label htmlFor="context-window" className="sr-only">
+              Full-text context window
+            </label>
+            <input
+              id="context-window"
+              type="number"
+              min={1}
+              max={10}
+              value={aiSettings.fullContextWindow}
+              onChange={(e) =>
+                updateAiSettings({ fullContextWindow: Number(e.target.value) || 1 })
+              }
+              className="sr-only"
+            />
+          </div>
+          <Ticks
+            className="mt-4 max-w-[220px]"
+            value={aiSettings.fullContextWindow / 10}
+            total={10}
           />
-          <div className="space-y-4 p-5">
+          <p className="mt-3 text-sm text-ink-muted">
+            Recent chapters sent verbatim when generating. Older chapters fold into the
+            hidden story-so-far summary instead.
+          </p>
+
+          <hr className="my-8 h-0.5 border-0 bg-line" />
+
+          <Kicker className="mb-3">Hidden story-so-far summary</Kicker>
+          <div className="space-y-4">
             <label className="flex items-start gap-2 text-sm text-ink">
               <input
                 type="checkbox"
@@ -312,11 +350,11 @@ export default function SettingsPage() {
             <p className="text-xs text-ink-subtle">
               After each successful generation, Inkdrop asks the model for a short
               continuity note (characters, what changed) and appends it here. It never
-              shows up in your chapters &mdash; it&rsquo;s only used as background
-              context for ideation.
+              shows up in your chapters — it&rsquo;s only used as background context
+              for ideation.
             </p>
             {rollingSummary.entries.length > 0 && (
-              <details className="rounded-lg border border-line bg-surface-2 p-3 text-xs text-ink-muted">
+              <details className="border border-line bg-surface-2 p-3 text-xs text-ink-muted">
                 <summary className="cursor-pointer font-medium text-ink">
                   View the log ({rollingSummary.entries.length} entries)
                 </summary>
@@ -324,7 +362,7 @@ export default function SettingsPage() {
                   {rollingSummary.entries.map((e) => (
                     <li key={e.chapterIndex}>
                       <span className="font-medium text-ink">
-                        Ch. {e.chapterIndex} &mdash; {e.chapterTitle}:
+                        Ch. {e.chapterIndex} — {e.chapterTitle}:
                       </span>{" "}
                       {e.summary}
                     </li>
@@ -333,14 +371,14 @@ export default function SettingsPage() {
               </details>
             )}
           </div>
-        </Card>
+        </div>
 
-        <Card>
-          <CardHeader
-            title="Cover art / image generation"
-            description="Cover generation always goes through OpenAI Images."
-          />
-          <div className="space-y-5 p-5">
+        {/* ---------------------------------------------------------- */}
+        {/* Right: images, project                                      */}
+        {/* ---------------------------------------------------------- */}
+        <div className="min-w-0 lg:pl-10">
+          <Kicker className="mb-5">Images</Kicker>
+          <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
             <Field label="Image model" htmlFor="image-model">
               <Select
                 id="image-model"
@@ -358,7 +396,7 @@ export default function SettingsPage() {
             <Field
               label="OpenAI API key"
               htmlFor="image-key"
-              hint="Stored encrypted on the server. Leave blank to fall back to OPENAI_API_KEY on the server. Cover generation always uses OpenAI Images &mdash; Claude doesn&rsquo;t currently offer an image generation API."
+              hint="Stored encrypted on the server. Falls back to OPENAI_API_KEY if left blank."
             >
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <Input
@@ -370,7 +408,7 @@ export default function SettingsPage() {
                   value={imageKeyDraft}
                   onChange={(e) => setImageKeyDraft(e.target.value)}
                 />
-                {imageKeySaved && <Badge tone="success">Key saved</Badge>}
+                {imageKeySaved && <Badge tone="accent">Key saved</Badge>}
               </div>
               <div className="mt-2 flex gap-2">
                 <Button
@@ -396,24 +434,30 @@ export default function SettingsPage() {
               </div>
             </Field>
           </div>
-        </Card>
+          <p className="mt-3 text-xs text-ink-subtle">
+            Cover generation always goes through OpenAI Images — Claude doesn&rsquo;t
+            currently offer an image generation API.
+          </p>
 
-        <Card>
-          <CardHeader title="Project data" description="Back up or move this project." />
-          <div className="space-y-2 p-5">
-            <a
-              href={`/api/projects/${id}/export`}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line-strong bg-surface px-3 text-xs font-medium text-ink transition-colors hover:bg-surface-2"
-            >
-              Export project (.inkdrop.json)
+          <hr className="my-8 h-0.5 border-0 bg-line" />
+
+          <Kicker className="mb-3">Project</Kicker>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-line py-4">
+            <div className="min-w-0">
+              <h3 className="text-[17px]">Export project file</h3>
+              <p className="mt-1 text-sm text-ink-muted">
+                Portable <span className="mono">.inkdrop.json</span> — bible, chapters
+                and board. API keys are not included.
+              </p>
+            </div>
+            <a href={`/api/projects/${id}/export`}>
+              <Button variant="secondary" size="sm">
+                Export
+              </Button>
             </a>
-            <p className="text-xs text-ink-subtle">
-              Downloads your story bible, chapters, and settings. API keys are{" "}
-              <strong>not</strong> included &mdash; re-enter them after importing on
-              another device. Import it back on the dashboard.
-            </p>
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   );

@@ -12,13 +12,23 @@ import {
   Pencil,
   Plus,
   Send,
-  StickyNote,
   Undo2,
   X,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { ClientProject, StoryboardChatMessage, StoryboardNote, StoryboardStroke } from "@/lib/types";
-import { Button, Card, CardHeader, EmptyState, ErrorState, Skeleton } from "@/components/ui";
+import {
+  Button,
+  CardHeader,
+  EmptyState,
+  ErrorState,
+  Kicker,
+  Lbl,
+  PageHeader,
+  Segmented,
+  Skeleton,
+  cn,
+} from "@/components/ui";
 
 const NOTE_COLORS = ["#FEF3C7", "#DBEAFE", "#DCFCE7", "#FCE7F3", "#E5E7EB"];
 /** Near-black — sticky notes keep a fixed pastel background in both themes,
@@ -301,8 +311,8 @@ export default function StoryboardPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-8 sm:px-6">
-        <Skeleton className="h-8 w-64" />
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-10 sm:px-10">
+        <Skeleton className="h-10 w-64" />
         <Skeleton className="h-4 w-96 max-w-full" />
         <Skeleton className="h-[65vh] w-full" />
       </div>
@@ -311,51 +321,54 @@ export default function StoryboardPage() {
 
   if (loadError) {
     return (
-      <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
+      <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-10">
         <ErrorState message={loadError} onRetry={retry} />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col overflow-x-hidden px-4 py-8 sm:px-6">
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-ink">Storyboard</h1>
-          <p className="text-sm text-ink-muted">
-            Scribble ideas, drag sticky notes around, and ask the agent what it thinks.
-          </p>
-        </div>
-        <div
-          className="text-xs text-ink-subtle"
-          role="status"
-          aria-live="polite"
-        >
-          {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : ""}
-        </div>
-      </div>
+    <div className="mx-auto flex w-full max-w-6xl flex-col overflow-x-hidden px-4 py-10 sm:px-10">
+      <PageHeader
+        kicker={`${notes.length} note${notes.length === 1 ? "" : "s"} · ${strokes.length} stroke${strokes.length === 1 ? "" : "s"} · canvas ${canvasSize.w} × ${canvasSize.h}`}
+        title="Storyboard"
+        description="Scribble ideas, drag sticky notes around, and ask the agent what it thinks."
+        size={48}
+        actions={
+          <span className="mono text-ink-subtle" role="status" aria-live="polite">
+            {saveState === "saving" ? "SAVING…" : saveState === "saved" ? "SAVED" : ""}
+          </span>
+        }
+      />
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div className="flex rounded-lg border border-line-strong bg-surface p-0.5">
-          <Button
-            variant={mode === "move" ? "primary" : "ghost"}
-            size="sm"
-            onClick={() => setMode("move")}
-            aria-pressed={mode === "move"}
-          >
-            <Hand className="h-3.5 w-3.5" aria-hidden />
-            Move
-          </Button>
-          <Button
-            variant={mode === "draw" ? "primary" : "ghost"}
-            size="sm"
-            onClick={() => setMode("draw")}
-            aria-pressed={mode === "draw"}
-          >
-            <Pencil className="h-3.5 w-3.5" aria-hidden />
-            Draw
-          </Button>
-        </div>
+      <div className="mt-6 flex flex-wrap items-center gap-3 border-y-2 border-line py-3">
+        <Lbl>Tool</Lbl>
+        <Segmented
+          name="tool"
+          ariaLabel="Board tool"
+          value={mode}
+          onChange={setMode}
+          options={[
+            {
+              value: "move",
+              label: (
+                <>
+                  <Hand className="h-3.5 w-3.5" aria-hidden />
+                  Move
+                </>
+              ),
+            },
+            {
+              value: "draw",
+              label: (
+                <>
+                  <Pencil className="h-3.5 w-3.5" aria-hidden />
+                  Draw
+                </>
+              ),
+            },
+          ]}
+        />
         {mode === "draw" && (
           <>
             <label className="sr-only" htmlFor="pen-color">
@@ -366,7 +379,7 @@ export default function StoryboardPage() {
               type="color"
               value={drawColor}
               onChange={(e) => setDrawColor(e.target.value)}
-              className="h-9 w-9 rounded border border-line-strong bg-surface"
+              className="h-9 w-9 border border-line-strong bg-surface"
             />
             <Button
               variant="secondary"
@@ -388,7 +401,7 @@ export default function StoryboardPage() {
             </Button>
           </>
         )}
-        <Button variant="primary" size="sm" onClick={addNote} className="ml-auto">
+        <Button variant="secondary" size="sm" onClick={addNote} className="ml-auto">
           <Plus className="h-3.5 w-3.5" aria-hidden />
           Sticky note
         </Button>
@@ -401,178 +414,188 @@ export default function StoryboardPage() {
       </p>
 
       <div
-        ref={boardRef}
-        onPointerMove={onBoardPointerMove}
-        onPointerUp={onBoardPointerUp}
-        onPointerDown={onBoardPointerDown}
-        className="relative h-[65vh] w-full overflow-hidden rounded-2xl border border-line bg-surface-2 [background-image:radial-gradient(circle,_var(--color-line-strong)_1px,_transparent_1px)] [background-size:16px_16px]"
-        style={{ touchAction: "none", cursor: mode === "draw" ? "crosshair" : "default" }}
-      >
-        <canvas
-          ref={canvasRef}
-          width={canvasSize.w}
-          height={canvasSize.h}
-          className="pointer-events-none absolute inset-0"
-          style={{ touchAction: "none" }}
-        />
-        {notes.length === 0 && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
-            <EmptyState
-              icon={<StickyNote className="h-6 w-6" aria-hidden />}
-              title="Add your first note"
-              description="Drop a sticky note on the board to start mapping out scenes and ideas."
-            />
-          </div>
+        className={cn(
+          "mt-6 grid",
+          chatOpen ? "sm:grid-cols-[minmax(0,1fr)_330px]" : "sm:grid-cols-1"
         )}
-        {notes.map((note) => (
-          <div
-            key={note.id}
-            data-note
-            onPointerDown={(e) => onNotePointerDown(e, note)}
-            className="absolute flex flex-col rounded-lg p-2 shadow-card"
-            style={{
-              left: note.x,
-              top: note.y,
-              width: note.w,
-              height: note.h,
-              backgroundColor: note.color,
-              cursor: mode === "move" ? "grab" : "default",
-            }}
-          >
-            <div className="mb-1 flex justify-end gap-1">
-              {NOTE_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => updateNote(note.id, { color: c })}
-                  aria-label={`Set note color to ${c}`}
-                  aria-pressed={note.color === c}
-                  className="h-3 w-3 rounded-full border border-black/10"
-                  style={{ backgroundColor: c }}
-                />
-              ))}
-              <button
-                type="button"
-                onClick={() => removeNote(note.id)}
-                aria-label="Delete note"
-                className="ml-1 text-xs hover:opacity-70"
-                style={{ color: NOTE_TEXT_COLOR, opacity: 0.5 }}
-              >
-                <X className="h-3 w-3" aria-hidden />
-              </button>
+      >
+        <div
+          ref={boardRef}
+          onPointerMove={onBoardPointerMove}
+          onPointerUp={onBoardPointerUp}
+          onPointerDown={onBoardPointerDown}
+          className="relative h-[65vh] w-full overflow-hidden border-2 border-line bg-surface-2 [background-image:radial-gradient(circle,_var(--color-line-strong)_1px,_transparent_1px)] [background-size:16px_16px]"
+          style={{ touchAction: "none", cursor: mode === "draw" ? "crosshair" : "default" }}
+        >
+          <canvas
+            ref={canvasRef}
+            width={canvasSize.w}
+            height={canvasSize.h}
+            className="pointer-events-none absolute inset-0"
+            style={{ touchAction: "none" }}
+          />
+          {notes.length === 0 && (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
+              <EmptyState
+                kicker="Empty board"
+                title="Add your first note"
+                description="Drop a sticky note on the board to start mapping out scenes and ideas."
+              />
             </div>
-            <textarea
-              className="flex-1 resize-none border-none bg-transparent text-sm focus:outline-none"
-              style={{ color: NOTE_TEXT_COLOR }}
-              placeholder="..."
-              aria-label="Sticky note text"
-              value={note.text}
-              onPointerDown={(e) => e.stopPropagation()}
-              onChange={(e) => updateNote(note.id, { text: e.target.value })}
+          )}
+          {notes.map((note) => (
+            <div
+              key={note.id}
+              data-note
+              onPointerDown={(e) => onNotePointerDown(e, note)}
+              className="absolute flex flex-col border border-[rgba(0,0,0,0.15)] p-2 shadow-card"
+              style={{
+                left: note.x,
+                top: note.y,
+                width: note.w,
+                height: note.h,
+                backgroundColor: note.color,
+                cursor: mode === "move" ? "grab" : "default",
+              }}
+            >
+              <div className="mb-1 flex justify-end gap-1">
+                {NOTE_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => updateNote(note.id, { color: c })}
+                    aria-label={`Set note color to ${c}`}
+                    aria-pressed={note.color === c}
+                    className="h-3 w-3 border border-[rgba(0,0,0,0.15)]"
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+                <button
+                  type="button"
+                  onClick={() => removeNote(note.id)}
+                  aria-label="Delete note"
+                  className="ml-1 text-xs hover:opacity-70"
+                  style={{ color: NOTE_TEXT_COLOR, opacity: 0.5 }}
+                >
+                  <X className="h-3 w-3" aria-hidden />
+                </button>
+              </div>
+              <textarea
+                className="flex-1 resize-none border-none bg-transparent text-sm focus:outline-none"
+                style={{ color: NOTE_TEXT_COLOR }}
+                placeholder="..."
+                aria-label="Sticky note text"
+                value={note.text}
+                onPointerDown={(e) => e.stopPropagation()}
+                onChange={(e) => updateNote(note.id, { text: e.target.value })}
+              />
+            </div>
+          ))}
+        </div>
+
+        {chatOpen && (
+          <>
+            {/* Mobile scrim so the sheet reads as an overlay, not a floating box */}
+            <div
+              className="fixed inset-0 z-40 bg-[color-mix(in_srgb,var(--color-ink)_20%,transparent)] sm:hidden"
+              onClick={() => setChatOpen(false)}
+              aria-hidden
             />
-          </div>
-        ))}
+            <div
+              className={cn(
+                "flex flex-col overflow-hidden border-2 border-line bg-surface",
+                "fixed inset-x-3 bottom-3 top-auto z-50 h-[70vh]",
+                "sm:static sm:inset-auto sm:z-auto sm:h-auto sm:border-l-2 sm:border-y-0 sm:border-r-0"
+              )}
+            >
+              <CardHeader
+                title="Storyboard agent"
+                action={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setChatOpen(false)}
+                    aria-label="Close storyboard agent"
+                  >
+                    <X className="h-4 w-4" aria-hidden />
+                  </Button>
+                }
+              />
+              <div className="flex items-start gap-2 border-b border-hair bg-surface-2 px-4 py-2 text-xs text-ink-subtle">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                <span>
+                  Your sketch is only visible to vision-capable models. Check your{" "}
+                  <Link href={`/project/${id}/settings`} className="underline underline-offset-2 hover:text-ink">
+                    model settings
+                  </Link>
+                  .
+                </span>
+              </div>
+              <div
+                ref={chatLogRef}
+                role="log"
+                aria-live="polite"
+                className="flex-1 overflow-y-auto px-4 py-3 text-sm"
+              >
+                {chat.length === 0 && (
+                  <p className="text-ink-subtle">
+                    Ask things like &ldquo;what do you think of the story so far?&rdquo; or
+                    &ldquo;any changes you&rsquo;d suggest?&rdquo; — it reads your sticky notes,
+                    any sketch on the board, and your story bible.
+                  </p>
+                )}
+                {chat.map((m, i) => (
+                  <div key={i} className={i > 0 ? "mt-4 border-t border-hair pt-4" : undefined}>
+                    {m.role === "user" ? (
+                      <Lbl className="mb-1.5 block">You</Lbl>
+                    ) : (
+                      <Kicker className="mb-1.5">Agent</Kicker>
+                    )}
+                    <p className="leading-relaxed text-ink">{m.content}</p>
+                  </div>
+                ))}
+                {asking && <p className="mt-4 text-ink-subtle">Thinking…</p>}
+              </div>
+              <div className="flex items-center gap-2 border-t-2 border-line p-3">
+                <label className="sr-only" htmlFor="agent-question">
+                  Ask about the story
+                </label>
+                <input
+                  id="agent-question"
+                  className="h-9 flex-1 border border-line bg-surface px-2.5 text-sm text-ink placeholder:text-ink-subtle focus:border-accent focus:outline-none"
+                  placeholder="Ask about the story…"
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && !asking && askAgent()}
+                  disabled={asking}
+                />
+                <Button
+                  variant="primary"
+                  size="icon"
+                  onClick={askAgent}
+                  disabled={asking || !question.trim()}
+                  loading={asking}
+                  aria-label="Send question"
+                >
+                  {!asking && <Send className="h-4 w-4" aria-hidden />}
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Floating agent toggle */}
-      <Button
-        variant="primary"
-        size="icon"
-        onClick={() => setChatOpen((o) => !o)}
-        aria-label={chatOpen ? "Close storyboard agent" : "Open storyboard agent"}
-        aria-expanded={chatOpen}
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-float"
-      >
-        <MessageSquareText className="h-6 w-6" aria-hidden />
-      </Button>
-
-      {chatOpen && (
-        <>
-          {/* Mobile scrim so the drawer reads as a sheet, not a floating box */}
-          <div
-            className="fixed inset-0 z-40 bg-ink/20 sm:hidden"
-            onClick={() => setChatOpen(false)}
-            aria-hidden
-          />
-          <Card
-            className="fixed inset-x-3 bottom-3 top-auto z-50 flex h-[70vh] flex-col overflow-hidden sm:inset-x-auto sm:bottom-24 sm:right-6 sm:h-[28rem] sm:w-96"
-          >
-            <CardHeader
-              title="Storyboard agent"
-              action={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setChatOpen(false)}
-                  aria-label="Close storyboard agent"
-                >
-                  <X className="h-4 w-4" aria-hidden />
-                </Button>
-              }
-            />
-            <div className="flex items-start gap-2 border-b border-line bg-surface-2 px-4 py-2 text-xs text-ink-subtle">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-              <span>
-                Your sketch is only visible to vision-capable models. Check your{" "}
-                <Link href={`/project/${id}/settings`} className="underline underline-offset-2 hover:text-ink">
-                  model settings
-                </Link>
-                .
-              </span>
-            </div>
-            <div
-              ref={chatLogRef}
-              role="log"
-              aria-live="polite"
-              className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-sm"
-            >
-              {chat.length === 0 && (
-                <p className="text-ink-subtle">
-                  Ask things like &ldquo;what do you think of the story so far?&rdquo; or
-                  &ldquo;any changes you&rsquo;d suggest?&rdquo; — it reads your sticky notes,
-                  any sketch on the board, and your story bible.
-                </p>
-              )}
-              {chat.map((m, i) => (
-                <div
-                  key={i}
-                  className={
-                    m.role === "user"
-                      ? "ml-6 rounded-xl bg-accent px-3 py-2 text-accent-ink"
-                      : "mr-6 rounded-xl bg-surface-2 px-3 py-2 text-ink"
-                  }
-                >
-                  {m.content}
-                </div>
-              ))}
-              {asking && <p className="text-ink-subtle">Thinking…</p>}
-            </div>
-            <div className="flex items-center gap-2 border-t border-line p-3">
-              <label className="sr-only" htmlFor="agent-question">
-                Ask about the story
-              </label>
-              <input
-                id="agent-question"
-                className="h-10 flex-1 rounded-lg border border-line bg-surface px-3 text-sm text-ink placeholder:text-ink-subtle focus:border-accent focus:outline-none"
-                placeholder="Ask about the story..."
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && !asking && askAgent()}
-                disabled={asking}
-              />
-              <Button
-                variant="primary"
-                size="icon"
-                onClick={askAgent}
-                disabled={asking || !question.trim()}
-                loading={asking}
-                aria-label="Send question"
-              >
-                {!asking && <Send className="h-4 w-4" aria-hidden />}
-              </Button>
-            </div>
-          </Card>
-        </>
+      {!chatOpen && (
+        <Button
+          variant="primary"
+          size="icon"
+          onClick={() => setChatOpen(true)}
+          aria-label="Open storyboard agent"
+          aria-expanded={chatOpen}
+          className="fixed bottom-6 right-6 h-14 w-14 shadow-float"
+        >
+          <MessageSquareText className="h-6 w-6" aria-hidden />
+        </Button>
       )}
     </div>
   );
