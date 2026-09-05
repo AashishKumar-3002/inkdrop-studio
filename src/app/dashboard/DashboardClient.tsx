@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { BookText, Plus, Trash2, Upload } from "lucide-react";
+import { BookText, Plus, Search, Trash2, Upload } from "lucide-react";
 import { api, type ProjectSummary } from "@/lib/api";
 import {
   Badge,
@@ -12,12 +12,10 @@ import {
   Dialog,
   EmptyState,
   ErrorState,
-  Field,
   Input,
-  Kicker,
   Lbl,
   PageHeader,
-  Rule,
+  Panel,
   Skeleton,
   StatBand,
 } from "@/components/ui";
@@ -32,28 +30,14 @@ function formatRelative(iso: string): string {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
   if (days <= 0) return "today";
   if (days === 1) return "yesterday";
-  if (days < 30) return `${days} days ago`;
-  return new Date(iso).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-}
-
-/** A stable slug shown as the project's filing code under its title. */
-function code(name: string): string {
-  return (
-    name
-      .toUpperCase()
-      .replace(/[^A-Z0-9]+/g, "-")
-      .replace(/^-|-$/g, "")
-      .slice(0, 18) || "UNTITLED"
-  );
+  if (days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 export function DashboardClient() {
   const router = useRouter();
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
-  const [name, setName] = useState("");
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -61,9 +45,8 @@ export function DashboardClient() {
   const [pendingDelete, setPendingDelete] = useState<ProjectSummary | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Kicking off the request is synchronous and side-effect free; every
-  // setState happens in a promise callback, which is what keeps this out of
-  // React's "no synchronous setState in an effect" rule.
+  // The effect only starts the request; every setState lands in a promise
+  // callback, satisfying React's no-sync-setState-in-effect rule.
   const fetchProjects = useCallback(() => {
     api
       .listProjects()
@@ -76,7 +59,7 @@ export function DashboardClient() {
     fetchProjects();
   }, [fetchProjects]);
 
-  /** Retry from the error state — called from a click, so setState is fine. */
+  /** Retry from the error state — a click handler, so setState is fine. */
   const retry = useCallback(() => {
     setLoading(true);
     setLoadError(null);
@@ -87,7 +70,7 @@ export function DashboardClient() {
     if (creating) return;
     setCreating(true);
     try {
-      const project = await api.createProject(name.trim() || "Untitled Project");
+      const project = await api.createProject("Untitled Project");
       router.push(`/project/${project.id}/onboarding`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't create that project.");
@@ -135,13 +118,21 @@ export function DashboardClient() {
     { words: 0, chapters: 0 }
   );
 
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return projects;
+    return projects.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        (p.book?.title || "").toLowerCase().includes(q)
+    );
+  }, [projects, query]);
+
   return (
     <>
       <PageHeader
-        kicker="Workspace"
         title="Your projects"
         description="Pick up where you left off, or start something new."
-        size={58}
         actions={
           <>
             <Button
@@ -149,11 +140,11 @@ export function DashboardClient() {
               onClick={() => fileInputRef.current?.click()}
               loading={importing}
             >
-              <Upload className="h-4 w-4" />
-              Import .inkdrop.json
+              <Upload className="h-3.5 w-3.5" />
+              Import
             </Button>
             <Button onClick={createProject} loading={creating}>
-              <Plus className="h-4 w-4" />
+              <Plus className="h-3.5 w-3.5" />
               New project
             </Button>
           </>
@@ -172,7 +163,7 @@ export function DashboardClient() {
 
       {projects.length > 0 && (
         <StatBand
-          className="mt-10"
+          className="mt-7"
           stats={[
             { value: totals.words.toLocaleString(), label: "Words written" },
             { value: totals.chapters, label: "Chapters" },
@@ -185,24 +176,24 @@ export function DashboardClient() {
         />
       )}
 
-      <section className="mt-10">
+      <section className="mt-7">
         {loading ? (
-          <div className="space-y-px" aria-busy>
-            <Skeleton className="h-20" />
-            <Skeleton className="h-20" />
-            <Skeleton className="h-20" />
+          <div className="space-y-2" aria-busy>
+            <Skeleton className="h-[58px]" />
+            <Skeleton className="h-[58px]" />
+            <Skeleton className="h-[58px]" />
           </div>
         ) : loadError ? (
           <ErrorState message={loadError} onRetry={retry} />
         ) : projects.length === 0 ? (
           <EmptyState
-            kicker="No projects yet"
-            title="Name it, and Inkdrop will ask the right questions."
-            description="Start a project and you'll be walked through a short questionnaire that becomes the story bible every chapter is written against."
+            icon={<BookText className="h-4 w-4" />}
+            title="No projects yet"
+            description="Start one and Inkdrop walks you through a short questionnaire that becomes the story bible every chapter is written against."
             action={
               <>
                 <Button onClick={createProject} loading={creating}>
-                  <Plus className="h-4 w-4" />
+                  <Plus className="h-3.5 w-3.5" />
                   New project
                 </Button>
                 <Button
@@ -210,7 +201,7 @@ export function DashboardClient() {
                   onClick={() => fileInputRef.current?.click()}
                   loading={importing}
                 >
-                  <Upload className="h-4 w-4" />
+                  <Upload className="h-3.5 w-3.5" />
                   Import a project
                 </Button>
               </>
@@ -218,109 +209,87 @@ export function DashboardClient() {
           />
         ) : (
           <>
-            <div className="flex items-center justify-between pb-3">
-              <Lbl>All projects</Lbl>
-              <Lbl className="hidden sm:block">Chapters · Words · Bible · Edited</Lbl>
-            </div>
-
-            {projects.map((p, i) => {
-              const title = p.book?.title || p.name;
-              return (
-                <div
-                  key={p.id}
-                  className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-6 gap-y-3 border-t-2 border-line py-4 pl-6 sm:grid-cols-[46px_minmax(0,1fr)_70px_90px_110px_90px_60px]"
-                >
-                  <p className="rnum hidden sm:block">{String(i + 1).padStart(2, "0")}</p>
-
-                  <div className="min-w-0">
-                    <Link href={projectHref(p)} className="group">
-                      <h2 className="truncate text-[22px] leading-tight group-hover:text-accent">
-                        {title}
-                      </h2>
-                    </Link>
-                    <p className="mono mt-1.5 text-ink-muted">
-                      {code(p.name)}
-                      <span className="sm:hidden">
-                        {" · "}
-                        {p.chapterCount} CH · {p.wordCount.toLocaleString()} W ·{" "}
-                        {formatRelative(p.updatedAt).toUpperCase()}
-                      </span>
-                    </p>
-                  </div>
-
-                  <span className="tnum hidden text-sm sm:block">{p.chapterCount}</span>
-                  <span className="tnum hidden text-sm sm:block">
-                    {p.wordCount > 0 ? p.wordCount.toLocaleString() : "—"}
-                  </span>
-                  <span className="hidden sm:block">
-                    {p.onboardingComplete ? (
-                      <Badge tone="accent">Bible ready</Badge>
-                    ) : (
-                      <Badge tone="outline">Incomplete</Badge>
-                    )}
-                  </span>
-                  <span className="tnum hidden text-sm text-ink-muted sm:block">
-                    {formatRelative(p.updatedAt)}
-                  </span>
-
-                  <span className="flex items-center gap-3 text-ink-muted">
-                    <Link
-                      href={projectHref(p)}
-                      aria-label={`Open ${title}`}
-                      title="Open project"
-                      className="transition-colors hover:text-accent"
-                    >
-                      <BookText className="h-4 w-4" />
-                    </Link>
-                    <button
-                      aria-label={`Delete ${title}`}
-                      title="Delete project"
-                      onClick={() => setPendingDelete(p)}
-                      className="transition-colors hover:text-danger"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </span>
-                </div>
-              );
-            })}
-
-            <Rule />
-
-            <div className="grid gap-8 pt-6 lg:grid-cols-2 lg:items-end lg:gap-0">
-              <div className="lg:pr-10">
-                <Field label="Start a new project" htmlFor="new-project">
-                  <div className="flex gap-2">
-                    <Input
-                      id="new-project"
-                      className="flex-1"
-                      placeholder="Project name — the book's title comes later"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") createProject();
-                      }}
-                    />
-                    <Button onClick={createProject} loading={creating}>
-                      Create
-                    </Button>
-                  </div>
-                </Field>
+            {projects.length > 4 && (
+              <div className="relative mb-3 max-w-xs">
+                <Search
+                  className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-subtle"
+                  aria-hidden
+                />
+                <Input
+                  className="pl-8"
+                  placeholder="Search projects"
+                  aria-label="Search projects"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
               </div>
-              <div className="flex items-center gap-4 lg:border-l lg:border-hair lg:pl-10">
-                <p className="flex-1 text-[13px] text-ink-muted">
-                  Exported from Inkdrop before? Import the file and it lands with its
-                  bible, chapters and board intact.
+            )}
+
+            <Panel>
+              <div className="hidden items-center gap-4 border-b border-hair bg-surface-2/50 px-4 py-2 sm:flex">
+                <Lbl className="flex-1">Project</Lbl>
+                <Lbl className="w-16 text-right">Chapters</Lbl>
+                <Lbl className="w-20 text-right">Words</Lbl>
+                <Lbl className="w-24">Status</Lbl>
+                <Lbl className="w-16 text-right">Edited</Lbl>
+                <span className="w-8" />
+              </div>
+
+              {visible.length === 0 ? (
+                <p className="px-4 py-8 text-center text-[13px] text-ink-muted">
+                  No projects match &ldquo;{query}&rdquo;.
                 </p>
-                <Button
-                  variant="secondary"
-                  onClick={() => fileInputRef.current?.click()}
-                  loading={importing}
-                >
-                  Import
-                </Button>
-              </div>
-            </div>
+              ) : (
+                visible.map((p) => {
+                  const title = p.book?.title || p.name;
+                  return (
+                    <div
+                      key={p.id}
+                      className="group flex items-center gap-4 border-b border-hair px-4 py-2.5 transition-colors last:border-b-0 hover:bg-surface-2/60"
+                    >
+                      <Link href={projectHref(p)} className="min-w-0 flex-1">
+                        <span className="block truncate text-[13px] font-medium">
+                          {title}
+                        </span>
+                        <span className="mt-0.5 block truncate text-xs text-ink-muted">
+                          {p.name !== title && `${p.name} · `}
+                          <span className="sm:hidden">
+                            {p.chapterCount} ch · {p.wordCount.toLocaleString()} words ·{" "}
+                          </span>
+                          {formatRelative(p.updatedAt)}
+                        </span>
+                      </Link>
+
+                      <span className="tnum hidden w-16 text-right text-[13px] text-ink-muted sm:block">
+                        {p.chapterCount}
+                      </span>
+                      <span className="tnum hidden w-20 text-right text-[13px] text-ink-muted sm:block">
+                        {p.wordCount > 0 ? p.wordCount.toLocaleString() : "—"}
+                      </span>
+                      <span className="hidden w-24 sm:block">
+                        {p.onboardingComplete ? (
+                          <Badge tone="success">Ready</Badge>
+                        ) : (
+                          <Badge tone="warning">Setup</Badge>
+                        )}
+                      </span>
+                      <span className="tnum hidden w-16 text-right text-xs text-ink-subtle sm:block">
+                        {formatRelative(p.updatedAt)}
+                      </span>
+
+                      <button
+                        aria-label={`Delete ${title}`}
+                        title="Delete project"
+                        onClick={() => setPendingDelete(p)}
+                        className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-ink-subtle opacity-0 transition-all hover:bg-danger-soft hover:text-danger focus-visible:opacity-100 group-hover:opacity-100"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </Panel>
           </>
         )}
       </section>
@@ -328,21 +297,20 @@ export function DashboardClient() {
       <Dialog
         open={pendingDelete !== null}
         onClose={() => setPendingDelete(null)}
-        kicker="This can't be undone"
         title={`Delete “${pendingDelete?.book?.title || pendingDelete?.name}”?`}
         actions={
           <>
-            <Button variant="danger" onClick={confirmDelete}>
-              <Trash2 className="h-4 w-4" />
-              Delete project
+            <Button variant="ghost" onClick={() => setPendingDelete(null)}>
+              Cancel
             </Button>
             {pendingDelete && (
               <a href={`/api/projects/${pendingDelete.id}/export`}>
                 <Button variant="secondary">Export first</Button>
               </a>
             )}
-            <Button variant="ghost" onClick={() => setPendingDelete(null)}>
-              Cancel
+            <Button variant="danger" onClick={confirmDelete}>
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
             </Button>
           </>
         }
@@ -352,13 +320,10 @@ export function DashboardClient() {
             Its {pendingDelete.chapterCount} chapter
             {pendingDelete.chapterCount === 1 ? "" : "s"},{" "}
             {pendingDelete.wordCount.toLocaleString()} words and the whole story bible
-            go with it. Export the project file first if you want a copy you can bring
-            back.
+            go with it. This can&rsquo;t be undone.
           </>
         )}
       </Dialog>
-
-      <Kicker className="sr-only">End of project list</Kicker>
     </>
   );
 }

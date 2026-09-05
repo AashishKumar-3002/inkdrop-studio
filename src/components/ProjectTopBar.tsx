@@ -6,14 +6,13 @@ import { toast } from "sonner";
 import { ChevronDown, Minus, Plus, Settings2 } from "lucide-react";
 import { api, type ProviderInfo } from "@/lib/api";
 import type { ClientProject } from "@/lib/types";
-import { Button, Skeleton } from "@/components/ui";
+import { Button, Container, Skeleton } from "@/components/ui";
 
 type Settings = ClientProject["aiSettings"];
 
 /**
- * The status strip: a persistent, quiet line stating exactly what the model
- * will be given. It sits directly under the tabs so the answer to "what does
- * it know right now?" is never more than a glance away.
+ * A quiet strip stating exactly what the model will be given, so the answer
+ * to "what does it know right now?" is never more than a glance away.
  */
 export default function ProjectTopBar({ projectId }: { projectId: string }) {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -56,8 +55,10 @@ export default function ProjectTopBar({ projectId }: { projectId: string }) {
 
   if (!settings) {
     return (
-      <div className="border-b-2 border-line bg-surface px-4 py-2.5 sm:px-10">
-        <Skeleton className="h-3.5 w-72" />
+      <div className="border-b border-line bg-surface-2/60">
+        <Container className="py-2">
+          <Skeleton className="h-3.5 w-64" />
+        </Container>
       </div>
     );
   }
@@ -68,24 +69,20 @@ export default function ProjectTopBar({ projectId }: { projectId: string }) {
   const window = settings.fullContextWindow;
 
   return (
-    <div className="border-b-2 border-line bg-surface text-ink-muted">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2 text-xs sm:px-10">
+    <div className="border-b border-line bg-surface-2/60">
+      <Container className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-1.5 text-xs text-ink-muted">
         <button
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          className="flex items-center gap-1.5 text-left transition-colors hover:text-ink"
+          className="inline-flex items-center gap-1.5 rounded-md px-1 py-0.5 text-left transition-colors hover:text-ink"
         >
-          <span>
-            Model <b className="font-semibold text-ink">{provider?.label ?? settings.provider}</b>
-            {" · "}
-            <b className="font-semibold text-ink">{modelLabel}</b>
-            <span className="hidden sm:inline">
-              {" · "}Last{" "}
-              <b className="font-semibold text-ink">
-                {window} chapter{window === 1 ? "" : "s"}
-              </b>{" "}
-              verbatim
-            </span>
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-success" aria-hidden />
+          <span className="font-medium text-ink">{provider?.label ?? settings.provider}</span>
+          <span className="text-ink-subtle">·</span>
+          <span>{modelLabel}</span>
+          <span className="hidden text-ink-subtle sm:inline">·</span>
+          <span className="hidden sm:inline">
+            last {window} chapter{window === 1 ? "" : "s"} in full
           </span>
           <ChevronDown
             className={`h-3 w-3 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
@@ -94,16 +91,16 @@ export default function ProjectTopBar({ projectId }: { projectId: string }) {
 
         <Link
           href={`/project/${projectId}/settings`}
-          className="flex items-center gap-1.5 transition-colors hover:text-ink"
+          className="inline-flex items-center gap-1.5 rounded-md px-1 py-0.5 transition-colors hover:text-ink"
         >
           <Settings2 className="h-3 w-3" />
-          Full settings
+          Settings
         </Link>
-      </div>
+      </Container>
 
       {open && (
-        <div className="animate-fade-in flex flex-wrap items-center gap-3 border-t border-hair px-4 py-2.5 text-xs sm:px-10">
-          <span className="lbl">Chapters sent in full</span>
+        <Container className="animate-fade-in flex flex-wrap items-center gap-3 border-t border-hair py-2 text-xs">
+          <span className="text-ink-muted">Chapters sent in full</span>
           <div className="flex items-center gap-1">
             <Button
               variant="secondary"
@@ -115,7 +112,7 @@ export default function ProjectTopBar({ projectId }: { projectId: string }) {
             >
               <Minus className="h-3 w-3" />
             </Button>
-            <span className="tnum w-6 text-center font-semibold text-ink" aria-live="polite">
+            <span className="tnum w-6 text-center font-medium text-ink" aria-live="polite">
               {window}
             </span>
             <Button
@@ -130,9 +127,9 @@ export default function ProjectTopBar({ projectId }: { projectId: string }) {
             </Button>
           </div>
           <span className="text-ink-subtle">
-            Anything older is folded into the hidden story-so-far summary instead.
+            Older chapters fold into the hidden story-so-far summary.
           </span>
-        </div>
+        </Container>
       )}
     </div>
   );
