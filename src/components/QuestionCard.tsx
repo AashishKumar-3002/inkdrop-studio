@@ -39,24 +39,21 @@ export default function QuestionCard({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2.5">
       <div>
-        <h3
-          id={headingId}
-          className="text-[22px] leading-tight tracking-[-0.01em] text-ink"
-        >
+        <h3 id={headingId} className="text-[13px] font-medium text-ink">
           {question.prompt}
           {required && (
-            <span className="ml-1 text-danger-ink" aria-label="required">
+            <span className="ml-1 text-danger" aria-label="required">
               *
             </span>
           )}
         </h3>
         {question.helper && (
-          <p className="mt-2 text-sm text-ink-muted">{question.helper}</p>
+          <p className="mt-1 text-xs text-ink-muted">{question.helper}</p>
         )}
         {required && (
-          <p className="mono mt-2 text-danger-ink">Not answered yet</p>
+          <p className="mt-1 text-xs font-medium text-danger">Not answered yet</p>
         )}
       </div>
 
@@ -70,11 +67,11 @@ export default function QuestionCard({
           onChange={(e) => onChange({ ...value, custom: e.target.value })}
         />
       ) : (
-        <>
+        <div className="space-y-2">
           <div
             role="group"
             aria-labelledby={headingId}
-            className="flex flex-wrap gap-2"
+            className="flex flex-wrap gap-1.5"
           >
             {question.options?.map((opt) => {
               const active = value.selected.includes(opt.id);
@@ -97,7 +94,7 @@ export default function QuestionCard({
             value={value.custom}
             onChange={(e) => onChange({ ...value, custom: e.target.value })}
           />
-        </>
+        </div>
       )}
     </div>
   );

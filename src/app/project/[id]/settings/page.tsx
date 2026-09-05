@@ -9,10 +9,11 @@ import { AIProviderId, ClientProject } from "@/lib/types";
 import {
   Badge,
   Button,
+  Card,
+  CardHeader,
   ErrorState,
   Field,
   Input,
-  Kicker,
   Lbl,
   PageHeader,
   Select,
@@ -115,7 +116,7 @@ export default function SettingsPage() {
 
   if (loadError) {
     return (
-      <div className="px-4 py-10 sm:px-10">
+      <div className="container-app py-8">
         <ErrorState message={loadError} onRetry={load} />
       </div>
     );
@@ -123,10 +124,10 @@ export default function SettingsPage() {
 
   if (!project || !providers) {
     return (
-      <div className="space-y-4 px-4 py-10 sm:px-10">
-        <Skeleton className="h-10 w-64" />
+      <div className="container-app space-y-4 py-8">
+        <Skeleton className="h-8 w-64" />
         <Skeleton className="h-4 w-96 max-w-full" />
-        <Skeleton className="mt-6 h-96" />
+        <Skeleton className="mt-2 h-96" />
       </div>
     );
   }
@@ -138,31 +139,24 @@ export default function SettingsPage() {
   const visionModels = provider.models.filter((m) => m.vision).map((m) => m.label);
 
   return (
-    <div className="px-4 py-10 sm:px-10">
+    <div className="container-app py-8">
       <PageHeader
         kicker="Per project · keys never leave your workspace"
         title="Settings"
-        size={52}
         actions={
-          // Only speaks up while something is actually happening — a
-          // permanent "Idle" chip is noise, not status.
-          <span aria-live="polite" className="min-h-[22px]">
-            {status !== "idle" && (
-              <Badge tone={status === "saving" ? "outline" : "accent"}>
-                {status === "saving" ? "Saving…" : "Saved"}
-              </Badge>
-            )}
+          <span className="text-xs text-ink-subtle" aria-live="polite">
+            {status === "saving" ? "Saving…" : status === "saved" ? "Saved" : ""}
           </span>
         }
       />
 
-      <div className="mt-8 grid gap-10 border-t-2 border-line pt-8 lg:grid-cols-2 lg:gap-0 lg:pt-10">
-        {/* ---------------------------------------------------------- */}
-        {/* Left: text generation                                       */}
-        {/* ---------------------------------------------------------- */}
-        <div className="min-w-0 lg:border-r-2 lg:border-line lg:pr-10">
-          <Kicker className="mb-5">Text generation</Kicker>
-          <div className="space-y-5">
+      <div className="mt-7 flex flex-col gap-6">
+        <Card>
+          <CardHeader
+            title="Text generation"
+            description="Provider, model, and the key used to draft your chapters."
+          />
+          <div className="grid gap-x-5 gap-y-4 p-5 sm:grid-cols-2">
             <Field label="Provider" htmlFor="ai-provider">
               <Select
                 id="ai-provider"
@@ -211,6 +205,7 @@ export default function SettingsPage() {
             <Field
               label={`${provider.label} API key`}
               htmlFor="ai-key"
+              className="sm:col-span-2"
               hint={
                 <span className="flex flex-col gap-1">
                   <span>
@@ -274,70 +269,73 @@ export default function SettingsPage() {
               </div>
             </Field>
           </div>
+        </Card>
 
-          <hr className="my-8 h-0.5 border-0 bg-line" />
-
-          <Lbl>Full-text context window</Lbl>
-          <div className="mt-4 flex items-center gap-4">
-            <Button
-              variant="secondary"
-              size="icon"
-              aria-label="Decrease context window"
-              disabled={aiSettings.fullContextWindow <= 1}
-              onClick={() =>
-                updateAiSettings({
-                  fullContextWindow: Math.max(1, aiSettings.fullContextWindow - 1),
-                })
-              }
-            >
-              <Minus className="h-4 w-4" aria-hidden />
-            </Button>
-            <span className="disp tnum w-10 text-center text-[32px]" aria-hidden>
-              {aiSettings.fullContextWindow}
-            </span>
-            <Button
-              variant="secondary"
-              size="icon"
-              aria-label="Increase context window"
-              disabled={aiSettings.fullContextWindow >= 10}
-              onClick={() =>
-                updateAiSettings({
-                  fullContextWindow: Math.min(10, aiSettings.fullContextWindow + 1),
-                })
-              }
-            >
-              <Plus className="h-4 w-4" aria-hidden />
-            </Button>
-            <label htmlFor="context-window" className="sr-only">
-              Full-text context window
-            </label>
-            <input
-              id="context-window"
-              type="number"
-              min={1}
-              max={10}
-              value={aiSettings.fullContextWindow}
-              onChange={(e) =>
-                updateAiSettings({ fullContextWindow: Number(e.target.value) || 1 })
-              }
-              className="sr-only"
-            />
-          </div>
-          <Ticks
-            className="mt-4 max-w-[220px]"
-            value={aiSettings.fullContextWindow / 10}
-            total={10}
+        <Card>
+          <CardHeader
+            title="Full-text context window"
+            description="Recent chapters sent verbatim when generating. Older chapters fold into the hidden story-so-far summary instead."
           />
-          <p className="mt-3 text-sm text-ink-muted">
-            Recent chapters sent verbatim when generating. Older chapters fold into the
-            hidden story-so-far summary instead.
-          </p>
+          <div className="p-5">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="secondary"
+                size="icon"
+                aria-label="Decrease context window"
+                disabled={aiSettings.fullContextWindow <= 1}
+                onClick={() =>
+                  updateAiSettings({
+                    fullContextWindow: Math.max(1, aiSettings.fullContextWindow - 1),
+                  })
+                }
+              >
+                <Minus className="h-4 w-4" aria-hidden />
+              </Button>
+              <span className="disp tnum w-8 text-center text-2xl" aria-hidden>
+                {aiSettings.fullContextWindow}
+              </span>
+              <Button
+                variant="secondary"
+                size="icon"
+                aria-label="Increase context window"
+                disabled={aiSettings.fullContextWindow >= 10}
+                onClick={() =>
+                  updateAiSettings({
+                    fullContextWindow: Math.min(10, aiSettings.fullContextWindow + 1),
+                  })
+                }
+              >
+                <Plus className="h-4 w-4" aria-hidden />
+              </Button>
+              <label htmlFor="context-window" className="sr-only">
+                Full-text context window
+              </label>
+              <input
+                id="context-window"
+                type="number"
+                min={1}
+                max={10}
+                value={aiSettings.fullContextWindow}
+                onChange={(e) =>
+                  updateAiSettings({ fullContextWindow: Number(e.target.value) || 1 })
+                }
+                className="sr-only"
+              />
+              <Ticks
+                className="max-w-[220px] flex-1"
+                value={aiSettings.fullContextWindow / 10}
+              />
+            </div>
+          </div>
+        </Card>
 
-          <hr className="my-8 h-0.5 border-0 bg-line" />
-
-          <Kicker className="mb-3">Hidden story-so-far summary</Kicker>
-          <div className="space-y-4">
-            <label className="flex items-start gap-2 text-sm text-ink">
+        <Card>
+          <CardHeader
+            title="Hidden story-so-far summary"
+            description="A running continuity note used for chapters outside the full-text window."
+          />
+          <div className="space-y-3 p-5">
+            <label className="flex items-start gap-2 text-[13px] text-ink">
               <input
                 type="checkbox"
                 className="mt-0.5"
@@ -354,7 +352,7 @@ export default function SettingsPage() {
               for ideation.
             </p>
             {rollingSummary.entries.length > 0 && (
-              <details className="border border-line bg-surface-2 p-3 text-xs text-ink-muted">
+              <details className="rounded-lg border border-line bg-surface-2 p-3 text-xs text-ink-muted">
                 <summary className="cursor-pointer font-medium text-ink">
                   View the log ({rollingSummary.entries.length} entries)
                 </summary>
@@ -371,14 +369,14 @@ export default function SettingsPage() {
               </details>
             )}
           </div>
-        </div>
+        </Card>
 
-        {/* ---------------------------------------------------------- */}
-        {/* Right: images, project                                      */}
-        {/* ---------------------------------------------------------- */}
-        <div className="min-w-0 lg:pl-10">
-          <Kicker className="mb-5">Images</Kicker>
-          <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+        <Card>
+          <CardHeader
+            title="Cover art & images"
+            description="Model and key used to generate cover art. Cover generation always goes through OpenAI Images — Claude doesn't currently offer an image generation API."
+          />
+          <div className="grid gap-x-5 gap-y-4 p-5 sm:grid-cols-2">
             <Field label="Image model" htmlFor="image-model">
               <Select
                 id="image-model"
@@ -434,19 +432,14 @@ export default function SettingsPage() {
               </div>
             </Field>
           </div>
-          <p className="mt-3 text-xs text-ink-subtle">
-            Cover generation always goes through OpenAI Images — Claude doesn&rsquo;t
-            currently offer an image generation API.
-          </p>
+        </Card>
 
-          <hr className="my-8 h-0.5 border-0 bg-line" />
-
-          <Kicker className="mb-3">Project</Kicker>
-
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-line py-4">
+        <Card>
+          <CardHeader title="Project" description="Export a portable copy of this project." />
+          <div className="flex flex-wrap items-center justify-between gap-3 p-5">
             <div className="min-w-0">
-              <h3 className="text-[17px]">Export project file</h3>
-              <p className="mt-1 text-sm text-ink-muted">
+              <Lbl className="mb-1 block">Export project file</Lbl>
+              <p className="text-[13px] text-ink-muted">
                 Portable <span className="mono">.inkdrop.json</span> — bible, chapters
                 and board. API keys are not included.
               </p>
@@ -457,7 +450,7 @@ export default function SettingsPage() {
               </Button>
             </a>
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );
