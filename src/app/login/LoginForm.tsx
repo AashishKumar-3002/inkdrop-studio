@@ -67,7 +67,7 @@ export function LoginForm({
         </Field>
 
         {error && (
-          <p className="border-l-2 border-danger bg-danger-soft px-3 py-2 text-sm text-danger-ink" role="alert">
+          <p className="rounded-lg border border-danger-border bg-danger-soft px-3 py-2 text-[13px] text-danger" role="alert">
             {error}
           </p>
         )}
@@ -80,9 +80,9 @@ export function LoginForm({
       {hasOAuth && (
         <>
           <div className="my-5 flex items-center gap-3">
-            <span className="h-px flex-1 bg-hair" />
+            <span className="h-px flex-1 bg-line" />
             <span className="text-xs text-ink-subtle">or</span>
-            <span className="h-px flex-1 bg-hair" />
+            <span className="h-px flex-1 bg-line" />
           </div>
           <div className="space-y-2">
             {oauth.google && (

@@ -4,31 +4,35 @@ import Link from "next/link";
 import { enabledOAuthProviders } from "@/lib/auth";
 import { Wordmark } from "@/components/Brand";
 import { ThemeToggle } from "@/components/ThemeProvider";
-import { Display, Kicker, LoadingState } from "@/components/ui";
+import { Card, LoadingState } from "@/components/ui";
 import { LoginForm } from "./LoginForm";
 
 export const metadata: Metadata = { title: "Sign in" };
 
 export default function LoginPage() {
   return (
-    <main id="main" className="flex min-h-screen flex-col">
-      <nav className="flex items-center gap-4 border-b-2 border-line px-4 py-3.5 sm:px-10">
+    <main id="main" className="relative flex min-h-screen flex-col">
+      <div className="hero-glow" aria-hidden />
+      <div className="relative flex items-center justify-between px-5 py-4 sm:px-8">
         <Wordmark />
-        <ThemeToggle className="ml-auto" />
-      </nav>
-      <div className="flex flex-1 items-center px-4 py-12 sm:px-10">
-        <div className="w-full max-w-[400px]">
-          <Kicker className="mb-3">Sign in</Kicker>
-          <Display size={44}>Welcome back.</Display>
-          <p className="mt-4 mb-8 text-ink-muted">
-            Sign in to get back to your manuscript.
-          </p>
-          <Suspense fallback={<LoadingState />}>
-            <LoginForm oauth={enabledOAuthProviders} />
-          </Suspense>
-          <p className="mt-6 text-sm text-ink-muted">
+        <ThemeToggle />
+      </div>
+      <div className="relative flex flex-1 items-center justify-center px-5 pb-16">
+        <div className="w-full max-w-[380px]">
+          <div className="mb-6 text-center">
+            <h1 className="disp text-2xl">Welcome back</h1>
+            <p className="mt-1.5 text-[13px] text-ink-muted">
+              Sign in to get back to your manuscript.
+            </p>
+          </div>
+          <Card className="p-5">
+            <Suspense fallback={<LoadingState />}>
+              <LoginForm oauth={enabledOAuthProviders} />
+            </Suspense>
+          </Card>
+          <p className="mt-5 text-center text-[13px] text-ink-muted">
             New here?{" "}
-            <Link href="/register" className="font-semibold text-accent underline underline-offset-4">
+            <Link href="/register" className="font-medium text-accent hover:underline">
               Create an account
             </Link>
           </p>
