@@ -3,7 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { LogOut, User } from "lucide-react";
-import { Button } from "./ui";
+import { Button, Kicker, Rule } from "./ui";
+
+/** Initials for the square avatar — one letter from each of the first two words. */
+function initials(name?: string | null, email?: string | null): string {
+  const source = name?.trim() || email?.split("@")[0] || "";
+  const parts = source.split(/[\s._-]+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
+}
 
 export function UserMenu() {
   const { data: session } = useSession();
@@ -27,7 +35,6 @@ export function UserMenu() {
   }, [open]);
 
   const user = session?.user;
-  const initial = (user?.name || user?.email || "?").charAt(0).toUpperCase();
 
   return (
     <div className="relative" ref={ref}>
@@ -36,32 +43,32 @@ export function UserMenu() {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Account menu"
-        className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-surface-2 text-sm font-semibold text-ink transition-colors hover:border-line-strong"
+        className="grid h-[30px] w-[30px] place-items-center bg-ink font-display text-[11px] font-extrabold text-paper transition-opacity hover:opacity-85"
       >
-        {user ? initial : <User className="h-4 w-4" />}
+        {user ? initials(user.name, user.email) : <User className="h-3.5 w-3.5" />}
       </button>
 
       {open && (
         <div
           role="menu"
-          className="animate-fade-in absolute right-0 z-50 mt-2 w-60 rounded-xl border border-line bg-surface p-1.5 shadow-overlay"
+          className="animate-fade-in absolute right-0 z-50 mt-2 w-60 border border-line bg-paper p-4 shadow-overlay"
         >
-          <div className="border-b border-line px-3 py-2.5">
-            <p className="truncate text-sm font-medium text-ink">
-              {user?.name || "Signed in"}
-            </p>
-            {user?.email && (
-              <p className="truncate text-xs text-ink-muted">{user.email}</p>
-            )}
-          </div>
+          <Kicker>Signed in</Kicker>
+          <p className="mt-1 truncate font-display text-sm font-extrabold text-ink">
+            {user?.name || "Your account"}
+          </p>
+          {user?.email && (
+            <p className="mono mt-1 truncate text-ink-muted">{user.email}</p>
+          )}
+          <Rule className="my-3" />
           <Button
-            variant="ghost"
+            variant="secondary"
             size="sm"
             role="menuitem"
-            className="mt-1 w-full justify-start"
+            className="w-full justify-center"
             onClick={() => signOut({ callbackUrl: "/" })}
           >
-            <LogOut className="h-4 w-4" />
+            <LogOut className="h-3.5 w-3.5" />
             Sign out
           </Button>
         </div>

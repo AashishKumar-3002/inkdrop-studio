@@ -39,20 +39,25 @@ export default function QuestionCard({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div>
-        <h3 id={headingId} className="text-lg font-medium text-ink">
+        <h3
+          id={headingId}
+          className="text-[22px] leading-tight tracking-[-0.01em] text-ink"
+        >
           {question.prompt}
           {required && (
-            <span className="ml-1 text-danger" aria-label="required">
+            <span className="ml-1 text-danger-ink" aria-label="required">
               *
             </span>
           )}
         </h3>
         {question.helper && (
-          <p className="mt-1 text-sm text-ink-muted">{question.helper}</p>
+          <p className="mt-2 text-sm text-ink-muted">{question.helper}</p>
         )}
-        {required && <p className="mt-1 text-xs text-danger">Not answered yet</p>}
+        {required && (
+          <p className="mono mt-2 text-danger-ink">Not answered yet</p>
+        )}
       </div>
 
       {question.type === "text" ? (
