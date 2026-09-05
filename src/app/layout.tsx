@@ -33,16 +33,21 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    // suppressHydrationWarning: the theme script below (and some browser
-    // extensions) mutate <html> before React hydrates.
-    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-      </head>
+    // <html> deliberately carries no className: the inline theme script below
+    // adds/removes `dark` on this element before React hydrates, and an
+    // attribute React also renders is one React will compare and reject.
+    // Its layout styles live in globals.css instead. suppressHydrationWarning
+    // additionally covers attributes injected by browser extensions.
+    <html lang="en" suppressHydrationWarning>
       <body className="min-h-full flex flex-col">
+        {/* First child of <body> rather than inside <head>: Next reorders
+            head content around its own preloads, and a raw inline script
+            there desynchronises hydration. It still runs before the page
+            paints, which is all the theme needs. */}
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <a
           href="#main"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-accent focus:px-4 focus:py-2 focus:text-accent-ink"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-accent focus:px-4 focus:py-2 focus:text-accent-ink"
         >
           Skip to content
         </a>
@@ -55,7 +60,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 style: {
                   background: "var(--surface)",
                   color: "var(--ink)",
-                  border: "1px solid var(--border)",
+                  border: "1px solid var(--line)",
+                  // Square, like everything else in the system.
+                  borderRadius: 0,
+                  fontFamily: "var(--font-sans)",
                 },
               }}
             />
