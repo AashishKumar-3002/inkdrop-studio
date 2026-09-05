@@ -7,7 +7,7 @@ import { ONBOARDING_STEPS, SECTION_META } from "@/lib/questionnaire";
 import { AnswerValue, emptyStoryBible, StoryBible } from "@/lib/types";
 import QuestionCard, { emptyAnswer } from "@/components/QuestionCard";
 import { api } from "@/lib/api";
-import { Button, ErrorState, LoadingState } from "@/components/ui";
+import { Button, Display, ErrorState, LoadingState, Ticks } from "@/components/ui";
 
 export default function OnboardingPage() {
   const { id } = useParams<{ id: string }>();
@@ -47,10 +47,7 @@ export default function OnboardingPage() {
 
   const current = ONBOARDING_STEPS[step];
   const totalSteps = ONBOARDING_STEPS.length;
-  const progress = useMemo(
-    () => Math.round(((step + 1) / totalSteps) * 100),
-    [step, totalSteps]
-  );
+  const progress = useMemo(() => (step + 1) / totalSteps, [step, totalSteps]);
 
   function updateAnswer(qid: string, sectionId: keyof StoryBible, value: AnswerValue) {
     setBible((prev) => ({
@@ -107,7 +104,7 @@ export default function OnboardingPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto w-full max-w-2xl px-6 py-12">
+      <div className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-10">
         <LoadingState label="Loading your project…" />
       </div>
     );
@@ -115,7 +112,7 @@ export default function OnboardingPage() {
 
   if (loadError) {
     return (
-      <div className="mx-auto w-full max-w-2xl px-6 py-12">
+      <div className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-10">
         <ErrorState message={loadError} onRetry={retry} />
       </div>
     );
@@ -124,55 +121,47 @@ export default function OnboardingPage() {
   const meta = SECTION_META[current.section];
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 py-10 sm:px-6 sm:py-12">
-      <div className="mb-8">
-        <div className="mb-2 flex flex-col gap-2 text-xs text-ink-subtle sm:flex-row sm:items-center sm:justify-between">
-          <span aria-live="polite">
-            Setting up &ldquo;{projectName}&rdquo; — Step {step + 1} of {totalSteps}
+    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-10 sm:px-10 sm:py-12">
+      <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <span className="kicker mb-2" aria-live="polite">
+            Setting up &ldquo;{projectName}&rdquo; — Section {step + 1} of {totalSteps}
           </span>
-          <button
-            onClick={skipToEnd}
-            className="text-left text-ink-subtle underline hover:text-ink-muted sm:text-right"
-          >
-            Skip the rest, I&rsquo;ll fill in the story bible later
-          </button>
+          <Display size={48}>{meta.label}</Display>
         </div>
-        <div
-          className="h-1.5 w-full overflow-hidden rounded-full bg-surface-3"
-          role="progressbar"
-          aria-valuenow={progress}
-          aria-valuemin={0}
-          aria-valuemax={100}
+        <button
+          onClick={skipToEnd}
+          className="text-left text-xs text-ink-subtle underline underline-offset-2 hover:text-ink-muted sm:text-right"
         >
-          <div
-            className="h-full rounded-full bg-accent transition-all"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
+          Skip the rest, I&rsquo;ll fill in the story bible later
+        </button>
       </div>
 
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-ink">{meta.label}</h1>
-        <p className="mt-1 text-ink-muted">{meta.blurb}</p>
-      </div>
+      <Ticks value={progress} total={totalSteps} className="mb-3" />
+      <p className="mono mb-8 text-ink-subtle">
+        {Math.round(progress * 100)}% COMPLETE
+      </p>
+
+      <p className="mb-10 max-w-[52ch] text-ink-muted">{meta.blurb}</p>
 
       <div className="flex-1 space-y-10">
-        {current.questions.map((q) => (
-          <QuestionCard
-            key={q.id}
-            question={q}
-            value={bible[current.section].answers[q.id] ?? emptyAnswer()}
-            onChange={(value) => updateAnswer(q.id, current.section, value)}
-          />
+        {current.questions.map((q, i) => (
+          <div key={q.id} className={i > 0 ? "border-t-2 border-line pt-10" : undefined}>
+            <QuestionCard
+              question={q}
+              value={bible[current.section].answers[q.id] ?? emptyAnswer()}
+              onChange={(value) => updateAnswer(q.id, current.section, value)}
+            />
+          </div>
         ))}
       </div>
 
-      <div className="mt-10 flex items-center justify-between gap-3 border-t border-line pt-6">
-        <Button variant="ghost" onClick={goBack} disabled={step === 0}>
+      <div className="mt-10 flex items-center justify-between gap-3 border-t-2 border-line pt-6">
+        <Button variant="secondary" onClick={goBack} disabled={step === 0}>
           Back
         </Button>
         <Button onClick={goNext} loading={saving}>
-          {step < totalSteps - 1 ? "Next" : "Finish & build story bible"}
+          {step < totalSteps - 1 ? "Next section" : "Finish & build story bible"}
         </Button>
       </div>
     </div>

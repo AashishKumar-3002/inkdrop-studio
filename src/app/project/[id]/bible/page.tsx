@@ -16,8 +16,12 @@ import {
   Badge,
   Button,
   Card,
+  Display,
   ErrorState,
+  Kicker,
   LoadingState,
+  Rule,
+  RuledRow,
   Textarea,
 } from "@/components/ui";
 
@@ -114,7 +118,7 @@ export default function BiblePage() {
 
   if (loadError) {
     return (
-      <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
+      <div className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-10">
         <ErrorState message={loadError} onRetry={retry} />
       </div>
     );
@@ -122,7 +126,7 @@ export default function BiblePage() {
 
   if (!bible) {
     return (
-      <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
+      <div className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-10">
         <LoadingState label="Loading your story bible…" />
       </div>
     );
@@ -139,27 +143,33 @@ export default function BiblePage() {
   const totalMissing = Object.values(missingBySection).reduce((a, b) => a + b, 0);
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
-      <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+    <div className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-10">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-ink">Story Bible</h1>
-          <p className="mt-1 text-sm text-ink-muted">
-            Everything here is used as context whenever a chapter is generated. Edit
-            anytime — nothing is locked in.
-            {totalMissing > 0 && (
-              <span className="ml-1 text-danger">
-                {totalMissing} essential question{totalMissing === 1 ? "" : "s"} still
-                unanswered.
-              </span>
-            )}
-          </p>
+          <Kicker className="mb-3">Everything the drafts are grounded in</Kicker>
+          <Display size={52}>Story bible</Display>
         </div>
-        <span className="text-xs text-ink-subtle" role="status" aria-live="polite">
-          {status === "saving" ? "Saving…" : status === "saved" ? "Saved" : ""}
+        <span
+          className="mono text-ink-subtle sm:text-right"
+          role="status"
+          aria-live="polite"
+        >
+          {status === "saving" ? "SAVING…" : status === "saved" ? "SAVED" : ""}
         </span>
       </div>
 
-      <Card className="mb-6 p-5">
+      <p className="mb-8 max-w-[56ch] text-ink-muted">
+        Everything here is used as context whenever a chapter is generated. Edit
+        anytime — nothing is locked in.
+        {totalMissing > 0 && (
+          <span className="ml-1 text-danger-ink">
+            {totalMissing} essential question{totalMissing === 1 ? "" : "s"} still
+            unanswered.
+          </span>
+        )}
+      </p>
+
+      <Card className="mb-10 p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <h2 className="text-sm font-medium text-ink">Already have a story bible?</h2>
@@ -223,32 +233,36 @@ export default function BiblePage() {
         )}
       </Card>
 
-      <div className="space-y-3">
-        {SECTION_IDS.map((sectionId) => {
+      <div>
+        {SECTION_IDS.map((sectionId, i) => {
           const meta = SECTION_META[sectionId];
           const essentials = ONBOARDING_QUESTIONS.filter((q) => q.section === sectionId);
           const deepDive = DEEP_DIVE_QUESTIONS.filter((q) => q.section === sectionId);
           const isOpen = openSection === sectionId;
           const showDeepDive = openDeepDive[sectionId];
           const missing = missingBySection[sectionId];
+          const total = essentials.length;
+          const answered = total - missing;
           const panelId = `bible-section-${sectionId}`;
 
           return (
-            <Card key={sectionId} className="overflow-hidden">
+            <RuledRow key={sectionId} index={String(i + 1).padStart(2, "0")}>
               <button
                 onClick={() => setOpenSection(isOpen ? null : sectionId)}
-                className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
+                className="flex w-full items-center justify-between gap-3 text-left"
                 aria-expanded={isOpen}
                 aria-controls={panelId}
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2 font-medium text-ink">
                     {meta.label}
-                    {missing > 0 && (
-                      <Badge tone="danger">{missing} missing</Badge>
-                    )}
+                    <Badge tone={missing > 0 ? "outline" : "accent"}>
+                      <span className="tnum">
+                        {answered}/{total}
+                      </span>
+                    </Badge>
                   </div>
-                  <div className="text-xs text-ink-subtle">{meta.blurb}</div>
+                  <div className="mt-1 text-xs text-ink-subtle">{meta.blurb}</div>
                 </div>
                 <ChevronDown
                   className={`h-4 w-4 shrink-0 text-ink-subtle transition-transform ${
@@ -259,10 +273,7 @@ export default function BiblePage() {
               </button>
 
               {isOpen && (
-                <div
-                  id={panelId}
-                  className="space-y-8 border-t border-line px-5 py-6"
-                >
+                <div id={panelId} className="mt-6 space-y-8 border-t border-hair pt-6">
                   {essentials.map((q) => (
                     <QuestionCard
                       key={q.id}
@@ -276,7 +287,7 @@ export default function BiblePage() {
                   <div>
                     <label
                       htmlFor={`${panelId}-notes`}
-                      className="mb-1 block text-sm font-medium text-ink"
+                      className="mb-1.5 block text-xs text-ink-muted"
                     >
                       Freeform notes for this section
                     </label>
@@ -290,7 +301,7 @@ export default function BiblePage() {
                   </div>
 
                   {deepDive.length > 0 && (
-                    <div className="border-t border-dashed border-line pt-5">
+                    <div className="border-t border-hair pt-5">
                       <button
                         onClick={() =>
                           setOpenDeepDive((prev) => ({
@@ -298,7 +309,7 @@ export default function BiblePage() {
                             [sectionId]: !prev[sectionId],
                           }))
                         }
-                        className="text-sm font-medium text-ink-muted underline hover:text-ink"
+                        className="lbl text-accent-700 underline underline-offset-2 hover:text-accent"
                       >
                         {showDeepDive
                           ? "Hide deep-dive questions"
@@ -320,9 +331,10 @@ export default function BiblePage() {
                   )}
                 </div>
               )}
-            </Card>
+            </RuledRow>
           );
         })}
+        <Rule />
       </div>
     </div>
   );
