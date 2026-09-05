@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Field, Input } from "@/components/ui";
 
 export function RegisterForm() {
   const router = useRouter();
@@ -50,7 +50,7 @@ export function RegisterForm() {
   }
 
   return (
-    <Card className="p-6">
+    <div>
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <Field label="Name" htmlFor="name" error={fieldErrors.name?.[0]}>
           <Input
@@ -91,7 +91,7 @@ export function RegisterForm() {
         </Field>
 
         {error && (
-          <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger" role="alert">
+          <p className="border-l-2 border-danger bg-danger-soft px-3 py-2 text-sm text-danger-ink" role="alert">
             {error}
           </p>
         )}
@@ -100,6 +100,6 @@ export function RegisterForm() {
           Create account
         </Button>
       </form>
-    </Card>
+    </div>
   );
 }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Field, Input } from "@/components/ui";
 
 export function LoginForm({
   oauth,
@@ -42,7 +42,7 @@ export function LoginForm({
   const hasOAuth = oauth.google || oauth.github;
 
   return (
-    <Card className="p-6">
+    <div>
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <Field label="Email" htmlFor="email">
           <Input
@@ -67,7 +67,7 @@ export function LoginForm({
         </Field>
 
         {error && (
-          <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger" role="alert">
+          <p className="border-l-2 border-danger bg-danger-soft px-3 py-2 text-sm text-danger-ink" role="alert">
             {error}
           </p>
         )}
@@ -80,9 +80,9 @@ export function LoginForm({
       {hasOAuth && (
         <>
           <div className="my-5 flex items-center gap-3">
-            <span className="h-px flex-1 bg-line" />
+            <span className="h-px flex-1 bg-hair" />
             <span className="text-xs text-ink-subtle">or</span>
-            <span className="h-px flex-1 bg-line" />
+            <span className="h-px flex-1 bg-hair" />
           </div>
           <div className="space-y-2">
             {oauth.google && (
@@ -106,6 +106,6 @@ export function LoginForm({
           </div>
         </>
       )}
-    </Card>
+    </div>
   );
 }
