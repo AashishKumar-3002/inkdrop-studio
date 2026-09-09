@@ -21,6 +21,16 @@ function hasSessionCookie(req: NextRequest): boolean {
   return SESSION_COOKIES.some((name) => req.cookies.has(name));
 }
 
+/**
+ * A top-level page load, as opposed to one of the router's background RSC
+ * fetches. Sent by every browser that supports fetch metadata; treated as a
+ * navigation when absent so older clients keep the redirect.
+ */
+function isNavigation(req: NextRequest): boolean {
+  const mode = req.headers.get("sec-fetch-mode");
+  return mode === null || mode === "navigate";
+}
+
 export default function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   const signedIn = hasSessionCookie(req);
@@ -32,7 +42,15 @@ export default function proxy(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (AUTH_ROUTES.includes(pathname) && signedIn) {
+  // Only bounce a signed-in visitor off /login on a real navigation. The
+  // router also fetches these routes in the background (prefetch, cache
+  // refresh), and redirecting one of those is worse than useless: Next
+  // strips the RSC headers before the proxy runs, so it can't mark the
+  // redirect as an RSC hop, and the browser follows it as a plain request
+  // and gets a 404 it then caches. Fetch metadata is the only signal left
+  // that survives into the proxy — `navigate` means the address bar is
+  // actually moving.
+  if (AUTH_ROUTES.includes(pathname) && signedIn && isNavigation(req)) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
