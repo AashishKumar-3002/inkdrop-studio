@@ -38,8 +38,31 @@ for (const [from, to] of [
   console.log(`copied ${path.relative(root, from)} -> ${path.relative(root, to)}`);
 }
 
-// The Agent SDK is an optional dependency, so Next's standalone tracer may
-// not have pulled it in. Subscription mode needs it present at runtime.
+// The migration files and the runner that applies them. A desktop install
+// creates its database on first launch, so these ship with the app rather
+// than being a developer-only concern.
+for (const [from, to] of [
+  [path.join(root, "drizzle"), path.join(standalone, "drizzle")],
+  [
+    path.join(root, "scripts", "migrate-local.mjs"),
+    path.join(standalone, "migrate-local.mjs"),
+  ],
+]) {
+  await rm(to, { recursive: true, force: true });
+  await cp(from, to, { recursive: true });
+  console.log(`copied ${path.relative(root, from)} -> ${path.relative(root, to)}`);
+}
+
+// PGlite carries a WASM payload that Next's tracer resolves inconsistently,
+// and the Agent SDK is an optional dependency it may skip entirely. Both
+// have to be present at runtime, so copy them in rather than hope.
+const pglite = path.join(root, "node_modules", "@electric-sql", "pglite");
+const pgliteDest = path.join(standalone, "node_modules", "@electric-sql", "pglite");
+if ((await exists(pglite)) && !(await exists(pgliteDest))) {
+  await cp(pglite, pgliteDest, { recursive: true });
+  console.log("copied @electric-sql/pglite into the standalone bundle");
+}
+
 const sdk = path.join(root, "node_modules", "@anthropic-ai", "claude-agent-sdk");
 const sdkDest = path.join(standalone, "node_modules", "@anthropic-ai", "claude-agent-sdk");
 if ((await exists(sdk)) && !(await exists(sdkDest))) {
