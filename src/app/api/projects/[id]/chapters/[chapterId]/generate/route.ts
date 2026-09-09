@@ -99,15 +99,22 @@ export async function POST(
               const latest = await getProject(project.id, userId);
               if (latest && summary) {
                 const entries = latest.rollingSummary.entries.filter(
-                  (e) => e.chapterIndex !== chapter.index
+                  (e) => e.chapterId !== chapter.id
                 );
                 entries.push({
-                  chapterIndex: chapter.index,
+                  chapterId: chapter.id,
                   chapterTitle: chapter.title,
                   summary,
                   createdAt: new Date().toISOString(),
                 });
-                entries.sort((a, b) => a.chapterIndex - b.chapterIndex);
+                // Order follows the project's live chapter order rather than
+                // any number stored on the entry.
+                const order = new Map(latest.chapters.map((c, i) => [c.id, i]));
+                entries.sort(
+                  (a, b) =>
+                    (order.get(a.chapterId) ?? Infinity) -
+                    (order.get(b.chapterId) ?? Infinity)
+                );
                 await updateProject(project.id, userId, {
                   rollingSummary: { ...latest.rollingSummary, entries },
                 });

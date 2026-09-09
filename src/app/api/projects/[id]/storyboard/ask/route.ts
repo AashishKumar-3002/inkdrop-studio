@@ -41,7 +41,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const bibleBrief = renderStoryBible(project.storyBible);
     const storySoFar = project.rollingSummary.entries
       .slice(-8)
-      .map((e) => `Ch.${e.chapterIndex} ${e.chapterTitle}: ${e.summary}`)
+      .map((e) => `${e.chapterTitle}: ${e.summary}`)
       .join("\n");
 
     const system = `You are a sharp, honest developmental editor helping an author think through their novel on a storyboard/corkboard. Be concrete and specific — reference their actual characters, threads, and notes. Point out gaps, contradictions, or missed opportunities when relevant. Keep answers focused (a few short paragraphs or a tight list), never generic writing-advice filler.`;

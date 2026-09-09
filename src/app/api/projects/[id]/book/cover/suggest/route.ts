@@ -28,7 +28,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const bibleBrief = renderStoryBible(project.storyBible);
     const storySoFar = project.rollingSummary.entries
       .slice(-6)
-      .map((e) => `Ch.${e.chapterIndex} ${e.chapterTitle}: ${e.summary}`)
+      .map((e) => `${e.chapterTitle}: ${e.summary}`)
       .join("\n");
 
     const system = `You art-direct novel covers. Given a story bible and the story so far, propose exactly 3 distinct cover art directions. Each should be a single vivid, concrete paragraph written as a ready-to-use image-generation prompt: composition, subject, mood, palette, lighting, style. No titles, no numbering labels beyond order, no commentary — just the 3 prompts, separated by a line of "---".`;

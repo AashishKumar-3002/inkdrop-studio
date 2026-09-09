@@ -88,7 +88,7 @@ describe("buildChapterPrompt", () => {
         enabled: true,
         entries: [
           {
-            chapterIndex: 1,
+            chapterId: "ch-1",
             chapterTitle: "Chapter 1",
             summary: "Mara leaves home.",
             createdAt: "2026-01-01T00:00:00.000Z",
@@ -116,7 +116,7 @@ describe("buildChapterPrompt", () => {
         enabled: true,
         entries: [
           {
-            chapterIndex: 1,
+            chapterId: "ch-1",
             chapterTitle: "Chapter 1",
             summary: "rolling summary wins",
             createdAt: "2026-01-01T00:00:00.000Z",
