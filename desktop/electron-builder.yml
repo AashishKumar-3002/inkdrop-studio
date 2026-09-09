@@ -1,0 +1,48 @@
+appId: studio.inkdrop.desktop
+productName: Inkdrop Studio
+copyright: Copyright © Inkdrop Studio
+
+directories:
+  output: dist
+  buildResources: build
+
+# Only the shell itself is packed; the Next server is added as an
+# unpacked resource by scripts/build-desktop.mjs (see extraResources).
+files:
+  - src/**/*
+  - package.json
+
+extraResources:
+  - from: ../.next/standalone
+    to: server
+  - from: ../.next/static
+    to: server/.next/static
+  - from: ../public
+    to: server/public
+
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  # Notarization needs an Apple Developer account; until then the app is
+  # unsigned and Gatekeeper will warn on first open.
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+
+win:
+  target:
+    - target: nsis
+      arch: [x64, arm64]
+
+linux:
+  category: Office
+  target:
+    - AppImage
+    - deb
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
