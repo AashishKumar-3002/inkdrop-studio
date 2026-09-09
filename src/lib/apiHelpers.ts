@@ -9,6 +9,7 @@
 import { NextResponse } from "next/server";
 import { ZodError, ZodType } from "zod";
 import { auth } from "@/lib/auth";
+import { isSingleUserMode, localUserId } from "@/lib/localUser";
 import { getProject, getProjectMeta } from "@/lib/repo/projects";
 import type { Project } from "@/lib/types";
 
@@ -31,8 +32,12 @@ export const locked = (what: string) => errorResponse(what, 409);
 
 /** Resolves the signed-in user's id, or null. */
 export async function currentUserId(): Promise<string | null> {
+  // On a single-user install there is nobody to authenticate against, so the
+  // local owner stands in. A real session still wins if one exists, which is
+  // what makes signing in to add credits an upgrade rather than a switch.
   const session = await auth();
-  return session?.user?.id ?? null;
+  if (session?.user?.id) return session.user.id;
+  return isSingleUserMode() ? localUserId() : null;
 }
 
 /** Parses and validates a JSON body, throwing an ApiProblem on failure. */

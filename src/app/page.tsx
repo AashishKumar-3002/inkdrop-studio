@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
+import { isSingleUserMode } from "@/lib/localUser";
 import { Wordmark } from "@/components/Brand";
 import { ThemeToggle } from "@/components/ThemeProvider";
 import { Badge, Button, Container } from "@/components/ui";
@@ -97,6 +98,8 @@ function AppPreview() {
 }
 
 export default async function LandingPage() {
+  // A single-user install has no sign-up to pitch — open the library.
+  if (isSingleUserMode()) redirect("/dashboard");
   const session = await auth();
   if (session?.user) redirect("/dashboard");
 
