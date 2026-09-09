@@ -202,6 +202,34 @@ export default function SettingsPage() {
               )}
             </Field>
 
+            {provider.usesSubscription ? (
+              <div className="sm:col-span-2 rounded-lg border border-accent-border bg-accent-soft p-3.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge tone="accent">No API key needed</Badge>
+                  <span className="text-[13px] font-medium text-ink">
+                    Signed in with your Claude account
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-ink-muted">
+                  Generation runs through the Claude Agent SDK using the account
+                  you signed into on this computer, so it draws from your own
+                  Pro or Max limits — the same pool as your normal Claude usage.
+                  Long chapters can consume it quickly. Run{" "}
+                  <code className="rounded bg-surface-2 px-1 py-0.5">claude login</code>{" "}
+                  in a terminal if generation reports that you are not signed in.
+                </p>
+                {provider.docsUrl && (
+                  <a
+                    href={provider.docsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 inline-flex w-fit items-center gap-1 text-xs text-accent hover:underline"
+                  >
+                    How subscription usage works <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
+              </div>
+            ) : (
             <Field
               label={`${provider.label} API key`}
               htmlFor="ai-key"
@@ -268,6 +296,7 @@ export default function SettingsPage() {
                 )}
               </div>
             </Field>
+            )}
           </div>
         </Card>
 
