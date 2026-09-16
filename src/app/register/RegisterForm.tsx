@@ -91,7 +91,7 @@ export function RegisterForm() {
         </Field>
 
         {error && (
-          <p className="border-l-2 border-danger bg-danger-soft px-3 py-2 text-sm text-danger-ink" role="alert">
+          <p className="rounded-lg border border-danger-border bg-danger-soft px-3 py-2 text-[13px] text-danger" role="alert">
             {error}
           </p>
         )}

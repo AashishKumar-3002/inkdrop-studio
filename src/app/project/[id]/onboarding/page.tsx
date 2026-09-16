@@ -7,7 +7,7 @@ import { ONBOARDING_STEPS, SECTION_META } from "@/lib/questionnaire";
 import { AnswerValue, emptyStoryBible, StoryBible } from "@/lib/types";
 import QuestionCard, { emptyAnswer } from "@/components/QuestionCard";
 import { api } from "@/lib/api";
-import { Button, Display, ErrorState, LoadingState, Ticks } from "@/components/ui";
+import { Button, Card, Display, ErrorState, LoadingState, Ticks } from "@/components/ui";
 
 export default function OnboardingPage() {
   const { id } = useParams<{ id: string }>();
@@ -104,7 +104,7 @@ export default function OnboardingPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-10">
+      <div className="container-narrow py-8">
         <LoadingState label="Loading your project…" />
       </div>
     );
@@ -112,7 +112,7 @@ export default function OnboardingPage() {
 
   if (loadError) {
     return (
-      <div className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-10">
+      <div className="container-narrow py-8">
         <ErrorState message={loadError} onRetry={retry} />
       </div>
     );
@@ -121,48 +121,47 @@ export default function OnboardingPage() {
   const meta = SECTION_META[current.section];
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-10 sm:px-10 sm:py-12">
-      <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <span className="kicker mb-2" aria-live="polite">
-            Setting up &ldquo;{projectName}&rdquo; — Section {step + 1} of {totalSteps}
-          </span>
-          <Display size={48}>{meta.label}</Display>
+    <div className="container-narrow py-8">
+      <span className="block text-xs text-ink-muted" aria-live="polite">
+        Setting up &ldquo;{projectName}&rdquo; — Section {step + 1} of {totalSteps}
+      </span>
+      <Ticks value={progress} className="mt-2.5" />
+      <Display size={26} className="mt-4">
+        {meta.label}
+      </Display>
+      <p className="mt-1.5 max-w-[52ch] text-[13px] text-ink-muted">{meta.blurb}</p>
+
+      <Card className="mt-6 p-5 sm:p-6">
+        <div className="divide-y divide-hair">
+          {current.questions.map((q) => (
+            <div key={q.id} className="py-4 first:pt-0 last:pb-0">
+              <QuestionCard
+                question={q}
+                value={bible[current.section].answers[q.id] ?? emptyAnswer()}
+                onChange={(value) => updateAnswer(q.id, current.section, value)}
+              />
+            </div>
+          ))}
         </div>
-        <button
-          onClick={skipToEnd}
-          className="text-left text-xs text-ink-subtle underline underline-offset-2 hover:text-ink-muted sm:text-right"
-        >
-          Skip the rest, I&rsquo;ll fill in the story bible later
-        </button>
-      </div>
+      </Card>
 
-      <Ticks value={progress} total={totalSteps} className="mb-3" />
-      <p className="mono mb-8 text-ink-subtle">
-        {Math.round(progress * 100)}% COMPLETE
-      </p>
-
-      <p className="mb-10 max-w-[52ch] text-ink-muted">{meta.blurb}</p>
-
-      <div className="flex-1 space-y-10">
-        {current.questions.map((q, i) => (
-          <div key={q.id} className={i > 0 ? "border-t-2 border-line pt-10" : undefined}>
-            <QuestionCard
-              question={q}
-              value={bible[current.section].answers[q.id] ?? emptyAnswer()}
-              onChange={(value) => updateAnswer(q.id, current.section, value)}
-            />
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-10 flex items-center justify-between gap-3 border-t-2 border-line pt-6">
-        <Button variant="secondary" onClick={goBack} disabled={step === 0}>
-          Back
-        </Button>
-        <Button onClick={goNext} loading={saving}>
-          {step < totalSteps - 1 ? "Next section" : "Finish & build story bible"}
-        </Button>
+      <div className="mt-6 border-t border-hair pt-4">
+        <div className="flex items-center justify-between gap-3">
+          <Button variant="secondary" onClick={goBack} disabled={step === 0}>
+            Back
+          </Button>
+          <Button onClick={goNext} loading={saving}>
+            {step < totalSteps - 1 ? "Next section" : "Finish & build story bible"}
+          </Button>
+        </div>
+        <div className="mt-3 text-center">
+          <button
+            onClick={skipToEnd}
+            className="text-xs text-ink-subtle underline underline-offset-2 hover:text-ink-muted"
+          >
+            Skip the rest, I&rsquo;ll fill in the story bible later
+          </button>
+        </div>
       </div>
     </div>
   );

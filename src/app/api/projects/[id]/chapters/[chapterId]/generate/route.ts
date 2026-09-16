@@ -41,6 +41,12 @@ export async function POST(
     const model = body.model || project.aiSettings.model || provider.defaultModel;
     const apiKey = resolveApiKey(providerId, project.aiSettings.apiKeys);
 
+    if (!apiKey && providerId === "claude-subscription") {
+      throw new ApiProblem(
+        400,
+        "Claude subscription mode only works in the Inkdrop desktop app, which can sign in with your Claude account locally. Pick a provider with an API key instead."
+      );
+    }
     if (!apiKey) {
       throw new ApiProblem(
         400,

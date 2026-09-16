@@ -4,11 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
+  FileText,
+  LayoutGrid,
   Lock,
   LockOpen,
   Plus,
   Rows3,
-  LayoutGrid,
   Trash2,
   Upload,
   X,
@@ -26,12 +27,13 @@ import {
   Kicker,
   Lbl,
   PageHeader,
-  Rule,
+  Panel,
   Segmented,
   Select,
   Skeleton,
   Textarea,
   Ticks,
+  cn,
 } from "@/components/ui";
 
 const STATUS_LABEL: Record<ChapterStatus, string> = {
@@ -263,18 +265,22 @@ export default function ChaptersPage() {
     />
   );
 
+  const ICON_BTN =
+    "grid h-7 w-7 shrink-0 place-items-center rounded-md text-ink-subtle opacity-0 transition-all hover:bg-surface-3 hover:text-ink focus-visible:opacity-100 group-hover:opacity-100";
+  const ICON_BTN_DANGER =
+    "grid h-7 w-7 shrink-0 place-items-center rounded-md text-ink-subtle opacity-0 transition-all hover:bg-danger-soft hover:text-danger focus-visible:opacity-100 group-hover:opacity-100";
+
   return (
-    <div className="px-4 py-10 sm:px-10">
+    <div className="container-app py-8">
       <PageHeader
-        kicker={`${chapters.length} chapter${chapters.length === 1 ? "" : "s"} · ${totalWords.toLocaleString()} words · ${lockedCount} locked`}
         title="Chapters"
-        size={52}
+        description={`${chapters.length} chapter${chapters.length === 1 ? "" : "s"} · ${totalWords.toLocaleString()} words · ${lockedCount} locked`}
         actions={
           <>
             {viewToggle}
             <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
               <Upload className="h-3.5 w-3.5" aria-hidden />
-              Upload chapters
+              Upload
             </Button>
             <input
               ref={fileInputRef}
@@ -296,13 +302,13 @@ export default function ChaptersPage() {
       />
 
       {showUpload && pending.length > 0 && (
-        <Card className="mt-8 p-5">
+        <Card className="mt-6 p-4">
           <Lbl>Set a title and status for each uploaded chapter</Lbl>
-          <div className="mt-4 space-y-0">
+          <div className="mt-3">
             {pending.map((item, i) => (
               <div
                 key={i}
-                className="flex flex-col gap-2 border-t border-hair py-3 sm:flex-row sm:items-center"
+                className="flex flex-col gap-2 border-t border-hair py-2.5 sm:flex-row sm:items-center"
               >
                 <Input
                   className="flex-1"
@@ -340,7 +346,7 @@ export default function ChaptersPage() {
               </div>
             ))}
           </div>
-          <div className="mt-4 flex justify-end gap-2">
+          <div className="mt-3 flex justify-end gap-2">
             <Button
               variant="ghost"
               onClick={() => {
@@ -359,17 +365,23 @@ export default function ChaptersPage() {
 
       {loading ? (
         <div
-          className={`mt-8 ${view === "grid" ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" : "space-y-px"}`}
+          className={cn(
+            "mt-6",
+            view === "grid" ? "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" : "space-y-2"
+          )}
         >
-          <Skeleton className="h-20" />
-          <Skeleton className="h-20" />
-          <Skeleton className="h-20" />
+          <Skeleton className="h-[52px]" />
+          <Skeleton className="h-[52px]" />
+          <Skeleton className="h-[52px]" />
         </div>
       ) : loadError ? (
-        <ErrorState message={loadError} onRetry={retry} />
+        <div className="mt-6">
+          <ErrorState message={loadError} onRetry={retry} />
+        </div>
       ) : chapters.length === 0 ? (
         <EmptyState
-          className="mt-8"
+          className="mt-6"
+          icon={<FileText className="h-4 w-4" />}
           kicker="No chapters yet"
           title="Give it one rough idea. Inkdrop writes the chapter."
           description={
@@ -382,193 +394,195 @@ export default function ChaptersPage() {
           action={
             <>
               <Button onClick={() => setShowForm(true)}>
-                <Plus className="h-4 w-4" aria-hidden />
+                <Plus className="h-3.5 w-3.5" aria-hidden />
                 New chapter
               </Button>
               <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
-                <Upload className="h-4 w-4" aria-hidden />
+                <Upload className="h-3.5 w-3.5" aria-hidden />
                 Upload chapters
               </Button>
             </>
           }
         />
-      ) : (
-        <div className="mt-8">
-          <div className="flex items-center justify-between pb-3">
-            <Lbl>Chapter</Lbl>
-            <Lbl className="hidden sm:block">Status · Words · Lock</Lbl>
+      ) : view === "list" ? (
+        <Panel className="mt-6">
+          <div className="hidden items-center gap-4 border-b border-hair bg-surface-2/50 px-4 py-2 sm:flex">
+            <span className="w-6" />
+            <Lbl className="flex-1">Chapter</Lbl>
+            <Lbl className="w-24">Status</Lbl>
+            <Lbl className="w-16 text-right">Words</Lbl>
+            <span className="w-16" />
           </div>
 
-          {view === "list" ? (
-            chapters.map((c) => {
-              const generating = c.status === "generating";
-              return (
-                <div
-                  key={c.id}
-                  className={`group grid grid-cols-[38px_1fr] items-baseline gap-x-6 gap-y-3 border-t-2 border-line py-4 sm:grid-cols-[70px_minmax(0,1fr)_150px_100px_90px] ${
-                    generating ? "bg-accent-100" : ""
-                  }`}
-                >
-                  <p className="rnum text-[13px] sm:text-[15px]">
-                    {String(c.index).padStart(2, "0")}
-                  </p>
+          {chapters.map((c) => {
+            const generating = c.status === "generating";
+            return (
+              <div
+                key={c.id}
+                className={cn(
+                  "group flex items-center gap-4 border-b border-hair px-4 py-2.5 transition-colors last:border-b-0",
+                  generating ? "bg-accent-soft" : "hover:bg-surface-2/60"
+                )}
+              >
+                <span className="rnum hidden w-6 sm:block">
+                  {String(c.index).padStart(2, "0")}
+                </span>
 
-                  <button
-                    className="min-w-0 text-left"
-                    onClick={() => router.push(`/project/${id}/chapters/${c.id}`)}
-                  >
-                    <h3
-                      className={`truncate text-[17px] leading-tight sm:text-[22px] ${
-                        !c.title.trim() ? "text-ink-subtle" : "group-hover:text-accent"
-                      }`}
+                <button
+                  className="min-w-0 flex-1 text-left"
+                  onClick={() => router.push(`/project/${id}/chapters/${c.id}`)}
+                >
+                  <span className="flex items-center gap-1.5">
+                    {c.locked && (
+                      <Lock className="h-3 w-3 shrink-0 text-ink-subtle" aria-label="Locked" />
+                    )}
+                    <span
+                      className={cn(
+                        "truncate text-[13px] font-medium",
+                        !c.title.trim() && "text-ink-subtle"
+                      )}
                     >
                       {c.title || "Untitled"}
-                    </h3>
-                    {c.idea && (
-                      <p className="mt-1.5 truncate text-sm text-ink-muted">
-                        {c.status === "idea" ? `Idea: ${c.idea}` : c.idea}
-                      </p>
-                    )}
-                    {generating && (
-                      <Ticks
-                        className="mt-2.5 max-w-[220px]"
-                        value={progressTicks(c.wordCount)}
-                      />
-                    )}
-                    <div className="mt-2 flex items-center gap-2 sm:hidden">
-                      <Badge tone={STATUS_TONE[c.status]}>{STATUS_LABEL[c.status]}</Badge>
-                      {c.wordCount > 0 && (
-                        <span className="mono tnum text-ink-muted">
-                          {c.wordCount.toLocaleString()}
-                        </span>
-                      )}
-                    </div>
-                  </button>
-
-                  <span className="hidden sm:block">
+                    </span>
+                  </span>
+                  {c.idea && (
+                    <span className="mt-0.5 block truncate text-xs text-ink-muted">
+                      {c.status === "idea" ? `Idea: ${c.idea}` : c.idea}
+                    </span>
+                  )}
+                  {generating && (
+                    <Ticks className="mt-1.5 max-w-[200px]" value={progressTicks(c.wordCount)} />
+                  )}
+                  <span className="mt-1 flex items-center gap-2 sm:hidden">
                     <Badge tone={STATUS_TONE[c.status]}>{STATUS_LABEL[c.status]}</Badge>
-                  </span>
-                  <span className="tnum hidden text-sm text-ink-muted sm:block">
-                    {c.wordCount > 0 ? c.wordCount.toLocaleString() : "—"}
-                  </span>
-                  <span className="hidden items-center gap-2 text-ink-muted sm:flex">
-                    {c.locked ? (
-                      <button
-                        aria-label={`Unlock chapter ${c.index}`}
-                        title="Unlock chapter"
-                        onClick={() => toggleLock(c)}
-                        className="flex items-center gap-1.5 transition-colors hover:text-ink"
-                      >
-                        <Lock className="h-4 w-4" aria-hidden />
-                        <span className="mono">LOCKED</span>
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          aria-label={`Lock chapter ${c.index}`}
-                          title="Lock chapter"
-                          onClick={() => toggleLock(c)}
-                          className="opacity-60 transition-opacity hover:text-accent hover:opacity-100"
-                        >
-                          <LockOpen className="h-4 w-4" aria-hidden />
-                        </button>
-                        <button
-                          aria-label={`Delete chapter ${c.index}`}
-                          onClick={() => removeChapter(c.id)}
-                          className="opacity-60 transition-opacity hover:text-danger hover:opacity-100"
-                        >
-                          <Trash2 className="h-4 w-4" aria-hidden />
-                        </button>
-                      </>
+                    {c.wordCount > 0 && (
+                      <span className="tnum text-xs text-ink-muted">
+                        {c.wordCount.toLocaleString()}
+                      </span>
                     )}
                   </span>
-                </div>
-              );
-            })
-          ) : (
-            <div className="grid grid-cols-1 gap-4 border-t-2 border-line pt-6 sm:grid-cols-2 lg:grid-cols-3">
-              {chapters.map((c) => {
-                const generating = c.status === "generating";
-                return (
-                  <Card
-                    key={c.id}
-                    className={`group flex flex-col p-4 transition-colors hover:border-line-strong ${
-                      generating ? "bg-accent-100" : ""
-                    }`}
-                  >
+                </button>
+
+                <span className="hidden w-24 sm:block">
+                  <Badge tone={STATUS_TONE[c.status]}>{STATUS_LABEL[c.status]}</Badge>
+                </span>
+                <span className="tnum hidden w-16 text-right text-[13px] text-ink-muted sm:block">
+                  {c.wordCount > 0 ? c.wordCount.toLocaleString() : "—"}
+                </span>
+                <span className="flex w-16 shrink-0 items-center justify-end gap-1">
+                  {c.locked ? (
                     <button
-                      className="flex-1 text-left"
-                      onClick={() => router.push(`/project/${id}/chapters/${c.id}`)}
+                      aria-label={`Unlock chapter ${c.index}`}
+                      title="Unlock chapter"
+                      onClick={() => toggleLock(c)}
+                      className={ICON_BTN}
                     >
-                      <div className="flex items-center gap-2">
-                        <p className="rnum text-[13px]">{String(c.index).padStart(2, "0")}</p>
-                        {c.locked && (
-                          <Lock className="h-3.5 w-3.5 shrink-0 text-ink-subtle" aria-label="Locked" />
-                        )}
-                      </div>
-                      <h3
-                        className={`mt-1.5 truncate text-[18px] leading-tight ${
-                          !c.title.trim() ? "text-ink-subtle" : "group-hover:text-accent"
-                        }`}
-                      >
-                        {c.title || "Untitled"}
-                      </h3>
-                      <div className="mt-2 flex items-center gap-2">
-                        <Badge tone={STATUS_TONE[c.status]}>{STATUS_LABEL[c.status]}</Badge>
-                        {c.wordCount > 0 && (
-                          <span className="tnum text-xs text-ink-muted">
-                            {c.wordCount.toLocaleString()}
-                          </span>
-                        )}
-                      </div>
-                      {generating && <Ticks className="mt-3" value={progressTicks(c.wordCount)} />}
-                      <p className="mt-3 line-clamp-4 text-xs text-ink-subtle">
-                        {c.content?.trim() || c.idea || "No content yet."}
-                      </p>
+                      <Lock className="h-3.5 w-3.5" aria-hidden />
                     </button>
-                    <div className="mt-3 flex items-center justify-between border-t border-hair pt-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label={c.locked ? `Unlock chapter ${c.index}` : `Lock chapter ${c.index}`}
-                        title={c.locked ? "Unlock chapter" : "Lock chapter"}
+                  ) : (
+                    <>
+                      <button
+                        aria-label={`Lock chapter ${c.index}`}
+                        title="Lock chapter"
                         onClick={() => toggleLock(c)}
+                        className={ICON_BTN}
                       >
-                        {c.locked ? (
-                          <Lock className="h-4 w-4" aria-hidden />
-                        ) : (
-                          <LockOpen className="h-4 w-4" aria-hidden />
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
+                        <LockOpen className="h-3.5 w-3.5" aria-hidden />
+                      </button>
+                      <button
                         aria-label={`Delete chapter ${c.index}`}
-                        disabled={c.locked}
                         onClick={() => removeChapter(c.id)}
-                        className="opacity-0 transition-opacity hover:text-danger focus-visible:opacity-100 group-hover:opacity-100"
+                        className={ICON_BTN_DANGER}
                       >
-                        <Trash2 className="h-4 w-4" aria-hidden />
-                      </Button>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                      </button>
+                    </>
+                  )}
+                </span>
+              </div>
+            );
+          })}
+        </Panel>
+      ) : (
+        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {chapters.map((c) => {
+            const generating = c.status === "generating";
+            return (
+              <div
+                key={c.id}
+                className={cn(
+                  "group flex flex-col rounded-xl border border-line bg-surface p-4 shadow-xs transition-colors hover:border-line-strong",
+                  generating && "bg-accent-soft"
+                )}
+              >
+                <button
+                  className="flex-1 text-left"
+                  onClick={() => router.push(`/project/${id}/chapters/${c.id}`)}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="rnum">{String(c.index).padStart(2, "0")}</span>
+                    {c.locked && (
+                      <Lock className="h-3.5 w-3.5 shrink-0 text-ink-subtle" aria-label="Locked" />
+                    )}
+                  </div>
+                  <h3
+                    className={cn(
+                      "mt-1.5 truncate text-[14px] font-medium leading-tight",
+                      !c.title.trim() && "text-ink-subtle"
+                    )}
+                  >
+                    {c.title || "Untitled"}
+                  </h3>
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <Badge tone={STATUS_TONE[c.status]}>{STATUS_LABEL[c.status]}</Badge>
+                    {c.wordCount > 0 && (
+                      <span className="tnum text-xs text-ink-muted">
+                        {c.wordCount.toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                  {generating && <Ticks className="mt-2.5" value={progressTicks(c.wordCount)} />}
+                  <p className="mt-2.5 line-clamp-3 text-xs text-ink-subtle">
+                    {c.content?.trim() || c.idea || "No content yet."}
+                  </p>
+                </button>
+                <div className="mt-3 flex items-center justify-between border-t border-hair pt-2">
+                  <button
+                    aria-label={c.locked ? `Unlock chapter ${c.index}` : `Lock chapter ${c.index}`}
+                    title={c.locked ? "Unlock chapter" : "Lock chapter"}
+                    onClick={() => toggleLock(c)}
+                    className="grid h-7 w-7 place-items-center rounded-md text-ink-subtle transition-colors hover:bg-surface-3 hover:text-ink"
+                  >
+                    {c.locked ? (
+                      <Lock className="h-3.5 w-3.5" aria-hidden />
+                    ) : (
+                      <LockOpen className="h-3.5 w-3.5" aria-hidden />
+                    )}
+                  </button>
+                  <button
+                    aria-label={`Delete chapter ${c.index}`}
+                    disabled={c.locked}
+                    onClick={() => removeChapter(c.id)}
+                    className={cn(ICON_BTN_DANGER, "disabled:pointer-events-none disabled:opacity-0")}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
       {!loading && !loadError && (
-        <div className={chapters.length > 0 ? "pt-7" : "mt-8"}>
-          {chapters.length > 0 && <Rule className="mb-7" />}
-          <Kicker className="mb-4">New chapter — {chapters.length + 1}</Kicker>
+        <div className="mt-6">
           {showForm ? (
-            <>
+            <Card className="p-4">
+              <Kicker className="mb-3">New chapter — {chapters.length + 1}</Kicker>
               <Segmented
                 name="new-chapter-mode"
                 ariaLabel="How to add this chapter"
-                className="mb-5"
+                className="mb-4"
                 value={mode}
                 onChange={setMode}
                 options={[
@@ -576,7 +590,7 @@ export default function ChaptersPage() {
                   { value: "manual", label: "I already have this chapter" },
                 ]}
               />
-              <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
+              <div className="grid gap-4 sm:grid-cols-2 sm:items-start">
                 <Field
                   label={`Title — optional, you can name it later`}
                   htmlFor="new-chapter-title"
@@ -588,7 +602,7 @@ export default function ChaptersPage() {
                     onChange={(e) => setNewTitle(e.target.value)}
                   />
                 </Field>
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {mode === "ai" ? (
                     <Field label="What should happen in this chapter?" htmlFor="new-chapter-idea">
                       <Textarea
@@ -604,7 +618,7 @@ export default function ChaptersPage() {
                       <Field label="Chapter text" htmlFor="new-chapter-content">
                         <Textarea
                           id="new-chapter-content"
-                          rows={6}
+                          rows={5}
                           placeholder="Paste the chapter text here…"
                           value={newContent}
                           onChange={(e) => setNewContent(e.target.value)}
@@ -632,13 +646,8 @@ export default function ChaptersPage() {
                   </div>
                 </div>
               </div>
-            </>
-          ) : (
-            <Button onClick={() => setShowForm(true)}>
-              <Plus className="h-3.5 w-3.5" aria-hidden />
-              New chapter
-            </Button>
-          )}
+            </Card>
+          ) : null}
         </div>
       )}
     </div>

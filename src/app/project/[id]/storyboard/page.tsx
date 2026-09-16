@@ -100,7 +100,7 @@ export default function StoryboardPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-    // The effect only kicks off the request; every setState lands in a
+  // The effect only kicks off the request; every setState lands in a
   // promise callback, satisfying React's no-sync-setState-in-effect rule.
   useEffect(() => {
     load();
@@ -311,101 +311,100 @@ export default function StoryboardPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-10 sm:px-10">
-        <Skeleton className="h-10 w-64" />
+      <div className="container-app flex flex-col gap-4 py-8">
+        <Skeleton className="h-8 w-64" />
         <Skeleton className="h-4 w-96 max-w-full" />
-        <Skeleton className="h-[65vh] w-full" />
+        <Skeleton className="mt-2 h-[65vh] w-full" />
       </div>
     );
   }
 
   if (loadError) {
     return (
-      <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-10">
+      <div className="container-app py-8">
         <ErrorState message={loadError} onRetry={retry} />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col overflow-x-hidden px-4 py-10 sm:px-10">
+    <div className="container-app flex flex-col overflow-x-hidden py-8">
       <PageHeader
-        kicker={`${notes.length} note${notes.length === 1 ? "" : "s"} · ${strokes.length} stroke${strokes.length === 1 ? "" : "s"} · canvas ${canvasSize.w} × ${canvasSize.h}`}
+        kicker={`${notes.length} note${notes.length === 1 ? "" : "s"} · ${strokes.length} stroke${strokes.length === 1 ? "" : "s"}`}
         title="Storyboard"
         description="Scribble ideas, drag sticky notes around, and ask the agent what it thinks."
-        size={48}
         actions={
-          <span className="mono text-ink-subtle" role="status" aria-live="polite">
-            {saveState === "saving" ? "SAVING…" : saveState === "saved" ? "SAVED" : ""}
-          </span>
+          <>
+            <span className="text-xs text-ink-subtle" aria-live="polite">
+              {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : ""}
+            </span>
+            <Segmented
+              name="tool"
+              ariaLabel="Board tool"
+              value={mode}
+              onChange={setMode}
+              options={[
+                {
+                  value: "move",
+                  label: (
+                    <>
+                      <Hand className="h-3.5 w-3.5" aria-hidden />
+                      Move
+                    </>
+                  ),
+                },
+                {
+                  value: "draw",
+                  label: (
+                    <>
+                      <Pencil className="h-3.5 w-3.5" aria-hidden />
+                      Draw
+                    </>
+                  ),
+                },
+              ]}
+            />
+            <Button variant="secondary" size="sm" onClick={addNote}>
+              <Plus className="h-3.5 w-3.5" aria-hidden />
+              Sticky note
+            </Button>
+          </>
         }
       />
 
-      <div className="mt-6 flex flex-wrap items-center gap-3 border-y-2 border-line py-3">
-        <Lbl>Tool</Lbl>
-        <Segmented
-          name="tool"
-          ariaLabel="Board tool"
-          value={mode}
-          onChange={setMode}
-          options={[
-            {
-              value: "move",
-              label: (
-                <>
-                  <Hand className="h-3.5 w-3.5" aria-hidden />
-                  Move
-                </>
-              ),
-            },
-            {
-              value: "draw",
-              label: (
-                <>
-                  <Pencil className="h-3.5 w-3.5" aria-hidden />
-                  Draw
-                </>
-              ),
-            },
-          ]}
-        />
-        {mode === "draw" && (
-          <>
-            <label className="sr-only" htmlFor="pen-color">
-              Pen color
-            </label>
-            <input
-              id="pen-color"
-              type="color"
-              value={drawColor}
-              onChange={(e) => setDrawColor(e.target.value)}
-              className="h-9 w-9 border border-line-strong bg-surface"
-            />
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={undoStroke}
-              disabled={strokes.length === 0}
-            >
-              <Undo2 className="h-3.5 w-3.5" aria-hidden />
-              Undo stroke
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={clearDrawing}
-              disabled={strokes.length === 0}
-            >
-              <Eraser className="h-3.5 w-3.5" aria-hidden />
-              Clear drawing
-            </Button>
-          </>
-        )}
-        <Button variant="secondary" size="sm" onClick={addNote} className="ml-auto">
-          <Plus className="h-3.5 w-3.5" aria-hidden />
-          Sticky note
-        </Button>
-      </div>
+      {mode === "draw" && (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Lbl>Pen</Lbl>
+          <label className="sr-only" htmlFor="pen-color">
+            Pen color
+          </label>
+          <input
+            id="pen-color"
+            type="color"
+            value={drawColor}
+            onChange={(e) => setDrawColor(e.target.value)}
+            className="h-8 w-8 rounded-md border border-line bg-surface"
+          />
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={undoStroke}
+            disabled={strokes.length === 0}
+          >
+            <Undo2 className="h-3.5 w-3.5" aria-hidden />
+            Undo stroke
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={clearDrawing}
+            disabled={strokes.length === 0}
+          >
+            <Eraser className="h-3.5 w-3.5" aria-hidden />
+            Clear drawing
+          </Button>
+        </div>
+      )}
 
       <p className="sr-only">
         The board below is a freehand sketch area. Switch to Draw mode and use a mouse,
@@ -415,8 +414,8 @@ export default function StoryboardPage() {
 
       <div
         className={cn(
-          "mt-6 grid",
-          chatOpen ? "sm:grid-cols-[minmax(0,1fr)_330px]" : "sm:grid-cols-1"
+          "mt-6 grid gap-4",
+          chatOpen ? "lg:grid-cols-[minmax(0,1fr)_330px]" : "lg:grid-cols-1"
         )}
       >
         <div
@@ -424,7 +423,7 @@ export default function StoryboardPage() {
           onPointerMove={onBoardPointerMove}
           onPointerUp={onBoardPointerUp}
           onPointerDown={onBoardPointerDown}
-          className="relative h-[65vh] w-full overflow-hidden border-2 border-line bg-surface-2 [background-image:radial-gradient(circle,_var(--color-line-strong)_1px,_transparent_1px)] [background-size:16px_16px]"
+          className="relative h-[65vh] w-full overflow-hidden rounded-xl border border-line bg-surface-2 shadow-xs [background-image:radial-gradient(circle,_var(--color-line-strong)_1px,_transparent_1px)] [background-size:16px_16px]"
           style={{ touchAction: "none", cursor: mode === "draw" ? "crosshair" : "default" }}
         >
           <canvas
@@ -448,7 +447,7 @@ export default function StoryboardPage() {
               key={note.id}
               data-note
               onPointerDown={(e) => onNotePointerDown(e, note)}
-              className="absolute flex flex-col border border-[rgba(0,0,0,0.15)] p-2 shadow-card"
+              className="absolute flex flex-col rounded-lg border border-[rgba(0,0,0,0.12)] p-2 shadow-card"
               style={{
                 left: note.x,
                 top: note.y,
@@ -466,7 +465,7 @@ export default function StoryboardPage() {
                     onClick={() => updateNote(note.id, { color: c })}
                     aria-label={`Set note color to ${c}`}
                     aria-pressed={note.color === c}
-                    className="h-3 w-3 border border-[rgba(0,0,0,0.15)]"
+                    className="h-3 w-3 rounded-full border border-[rgba(0,0,0,0.15)]"
                     style={{ backgroundColor: c }}
                   />
                 ))}
@@ -481,7 +480,7 @@ export default function StoryboardPage() {
                 </button>
               </div>
               <textarea
-                className="flex-1 resize-none border-none bg-transparent text-sm focus:outline-none"
+                className="flex-1 resize-none border-none bg-transparent text-[13px] focus:outline-none"
                 style={{ color: NOTE_TEXT_COLOR }}
                 placeholder="..."
                 aria-label="Sticky note text"
@@ -497,15 +496,15 @@ export default function StoryboardPage() {
           <>
             {/* Mobile scrim so the sheet reads as an overlay, not a floating box */}
             <div
-              className="fixed inset-0 z-40 bg-[color-mix(in_srgb,var(--color-ink)_20%,transparent)] sm:hidden"
+              className="fixed inset-0 z-40 bg-[color-mix(in_srgb,var(--color-ink)_20%,transparent)] lg:hidden"
               onClick={() => setChatOpen(false)}
               aria-hidden
             />
             <div
               className={cn(
-                "flex flex-col overflow-hidden border-2 border-line bg-surface",
+                "flex flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-card",
                 "fixed inset-x-3 bottom-3 top-auto z-50 h-[70vh]",
-                "sm:static sm:inset-auto sm:z-auto sm:h-auto sm:border-l-2 sm:border-y-0 sm:border-r-0"
+                "lg:static lg:inset-auto lg:z-auto lg:h-auto"
               )}
             >
               <CardHeader
@@ -525,7 +524,7 @@ export default function StoryboardPage() {
                 <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                 <span>
                   Your sketch is only visible to vision-capable models. Check your{" "}
-                  <Link href={`/project/${id}/settings`} className="underline underline-offset-2 hover:text-ink">
+                  <Link href={`/project/${id}/settings`} className="text-accent underline underline-offset-2 hover:text-accent-hover">
                     model settings
                   </Link>
                   .
@@ -535,7 +534,7 @@ export default function StoryboardPage() {
                 ref={chatLogRef}
                 role="log"
                 aria-live="polite"
-                className="flex-1 overflow-y-auto px-4 py-3 text-sm"
+                className="flex-1 overflow-y-auto px-4 py-3 text-[13px]"
               >
                 {chat.length === 0 && (
                   <p className="text-ink-subtle">
@@ -544,25 +543,29 @@ export default function StoryboardPage() {
                     any sketch on the board, and your story bible.
                   </p>
                 )}
-                {chat.map((m, i) => (
-                  <div key={i} className={i > 0 ? "mt-4 border-t border-hair pt-4" : undefined}>
-                    {m.role === "user" ? (
-                      <Lbl className="mb-1.5 block">You</Lbl>
-                    ) : (
-                      <Kicker className="mb-1.5">Agent</Kicker>
-                    )}
-                    <p className="leading-relaxed text-ink">{m.content}</p>
-                  </div>
-                ))}
-                {asking && <p className="mt-4 text-ink-subtle">Thinking…</p>}
+                {chat.map((m, i) =>
+                  m.role === "user" ? (
+                    <div key={i} className={cn("flex justify-end", i > 0 && "mt-3")}>
+                      <p className="max-w-[85%] rounded-lg bg-surface-2 px-3 py-2 leading-relaxed text-ink">
+                        {m.content}
+                      </p>
+                    </div>
+                  ) : (
+                    <div key={i} className={i > 0 ? "mt-3" : undefined}>
+                      <Kicker className="mb-1">Agent</Kicker>
+                      <p className="leading-relaxed text-ink">{m.content}</p>
+                    </div>
+                  )
+                )}
+                {asking && <p className="mt-3 text-ink-subtle">Thinking…</p>}
               </div>
-              <div className="flex items-center gap-2 border-t-2 border-line p-3">
+              <div className="flex items-center gap-2 border-t border-hair p-3">
                 <label className="sr-only" htmlFor="agent-question">
                   Ask about the story
                 </label>
                 <input
                   id="agent-question"
-                  className="h-9 flex-1 border border-line bg-surface px-2.5 text-sm text-ink placeholder:text-ink-subtle focus:border-accent focus:outline-none"
+                  className="h-9 flex-1 rounded-lg border border-line bg-surface px-2.5 text-[13px] text-ink placeholder:text-ink-subtle focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent/15"
                   placeholder="Ask about the story…"
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
@@ -592,7 +595,7 @@ export default function StoryboardPage() {
           onClick={() => setChatOpen(true)}
           aria-label="Open storyboard agent"
           aria-expanded={chatOpen}
-          className="fixed bottom-6 right-6 h-14 w-14 shadow-float"
+          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-float"
         >
           <MessageSquareText className="h-6 w-6" aria-hidden />
         </Button>

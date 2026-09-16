@@ -16,12 +16,10 @@ import {
   Badge,
   Button,
   Card,
-  Display,
   ErrorState,
-  Kicker,
   LoadingState,
-  Rule,
-  RuledRow,
+  PageHeader,
+  Panel,
   Textarea,
 } from "@/components/ui";
 
@@ -118,7 +116,7 @@ export default function BiblePage() {
 
   if (loadError) {
     return (
-      <div className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-10">
+      <div className="container-app py-8">
         <ErrorState message={loadError} onRetry={retry} />
       </div>
     );
@@ -126,7 +124,7 @@ export default function BiblePage() {
 
   if (!bible) {
     return (
-      <div className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-10">
+      <div className="container-app py-8">
         <LoadingState label="Loading your story bible…" />
       </div>
     );
@@ -143,42 +141,30 @@ export default function BiblePage() {
   const totalMissing = Object.values(missingBySection).reduce((a, b) => a + b, 0);
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-10">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <Kicker className="mb-3">Everything the drafts are grounded in</Kicker>
-          <Display size={52}>Story bible</Display>
-        </div>
-        <span
-          className="mono text-ink-subtle sm:text-right"
-          role="status"
-          aria-live="polite"
-        >
-          {status === "saving" ? "SAVING…" : status === "saved" ? "SAVED" : ""}
-        </span>
-      </div>
-
-      <p className="mb-8 max-w-[56ch] text-ink-muted">
-        Everything here is used as context whenever a chapter is generated. Edit
-        anytime — nothing is locked in.
-        {totalMissing > 0 && (
-          <span className="ml-1 text-danger-ink">
-            {totalMissing} essential question{totalMissing === 1 ? "" : "s"} still
-            unanswered.
-          </span>
-        )}
-      </p>
-
-      <Card className="mb-10 p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <h2 className="text-sm font-medium text-ink">Already have a story bible?</h2>
-            <p className="text-xs text-ink-subtle">
-              Paste your notes, or upload a story-bible.md / text file — Inkdrop will map
-              what it can onto the questionnaire below.
-            </p>
-          </div>
-          <div className="flex shrink-0 gap-2">
+    <div className="container-app py-8">
+      <PageHeader
+        title="Story Bible"
+        description={
+          <>
+            Everything here is used as context whenever a chapter is generated. Edit
+            anytime — nothing is locked in.
+            {totalMissing > 0 && (
+              <span className="ml-1 text-danger">
+                {totalMissing} essential question{totalMissing === 1 ? "" : "s"} still
+                unanswered.
+              </span>
+            )}
+          </>
+        }
+        actions={
+          <>
+            <span
+              className="tnum mr-1 text-xs text-ink-subtle"
+              role="status"
+              aria-live="polite"
+            >
+              {status === "saving" ? "Saving…" : status === "saved" ? "Saved" : ""}
+            </span>
             <Button
               variant="secondary"
               size="sm"
@@ -194,47 +180,53 @@ export default function BiblePage() {
             >
               {showImport ? "Hide" : "Paste text"}
             </Button>
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".md,.txt,text/plain,text/markdown"
-            className="hidden"
-            aria-label="Upload story bible file"
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              e.target.value = "";
-              if (!file) return;
-              const text = await file.text();
-              setImportText(text);
-              setShowImport(true);
-            }}
-          />
-        </div>
-        {showImport && (
-          <div className="mt-4 space-y-3">
-            <Textarea
-              rows={8}
-              aria-label="Paste your story bible or notes"
-              placeholder="Paste your story bible, notes, or a paragraph describing your novel…"
-              value={importText}
-              onChange={(e) => setImportText(e.target.value)}
-            />
-            <div className="flex justify-end">
-              <Button
-                onClick={runImport}
-                disabled={!importText.trim()}
-                loading={importing}
-              >
-                Extract answers
-              </Button>
-            </div>
-          </div>
-        )}
-      </Card>
+          </>
+        }
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".md,.txt,text/plain,text/markdown"
+        className="hidden"
+        aria-label="Upload story bible file"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (!file) return;
+          const text = await file.text();
+          setImportText(text);
+          setShowImport(true);
+        }}
+      />
 
-      <div>
-        {SECTION_IDS.map((sectionId, i) => {
+      {showImport && (
+        <Card className="mt-6 p-5">
+          <p className="text-xs text-ink-muted">
+            Paste your notes, or upload a story-bible.md / text file — Inkdrop will map
+            what it can onto the questionnaire below.
+          </p>
+          <Textarea
+            className="mt-3"
+            rows={8}
+            aria-label="Paste your story bible or notes"
+            placeholder="Paste your story bible, notes, or a paragraph describing your novel…"
+            value={importText}
+            onChange={(e) => setImportText(e.target.value)}
+          />
+          <div className="mt-3 flex justify-end">
+            <Button
+              onClick={runImport}
+              disabled={!importText.trim()}
+              loading={importing}
+            >
+              Extract answers
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      <Panel className="mt-6">
+        {SECTION_IDS.map((sectionId) => {
           const meta = SECTION_META[sectionId];
           const essentials = ONBOARDING_QUESTIONS.filter((q) => q.section === sectionId);
           const deepDive = DEEP_DIVE_QUESTIONS.filter((q) => q.section === sectionId);
@@ -246,23 +238,21 @@ export default function BiblePage() {
           const panelId = `bible-section-${sectionId}`;
 
           return (
-            <RuledRow key={sectionId} index={String(i + 1).padStart(2, "0")}>
+            <div key={sectionId}>
               <button
                 onClick={() => setOpenSection(isOpen ? null : sectionId)}
-                className="flex w-full items-center justify-between gap-3 text-left"
+                className="flex w-full items-center justify-between gap-3 border-b border-hair px-4 py-3 text-left transition-colors hover:bg-surface-2/60"
                 aria-expanded={isOpen}
                 aria-controls={panelId}
               >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 font-medium text-ink">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <span className="truncate text-[13px] font-medium text-ink">
                     {meta.label}
-                    <Badge tone={missing > 0 ? "outline" : "accent"}>
-                      <span className="tnum">
-                        {answered}/{total}
-                      </span>
-                    </Badge>
-                  </div>
-                  <div className="mt-1 text-xs text-ink-subtle">{meta.blurb}</div>
+                  </span>
+                  <span className="tnum text-xs text-ink-muted">
+                    {answered}/{total}
+                  </span>
+                  {missing > 0 && <Badge tone="warning">Incomplete</Badge>}
                 </div>
                 <ChevronDown
                   className={`h-4 w-4 shrink-0 text-ink-subtle transition-transform ${
@@ -273,7 +263,8 @@ export default function BiblePage() {
               </button>
 
               {isOpen && (
-                <div id={panelId} className="mt-6 space-y-8 border-t border-hair pt-6">
+                <div id={panelId} className="space-y-6 bg-surface-2/40 p-4">
+                  <p className="-mt-2 text-xs text-ink-subtle">{meta.blurb}</p>
                   {essentials.map((q) => (
                     <QuestionCard
                       key={q.id}
@@ -309,14 +300,14 @@ export default function BiblePage() {
                             [sectionId]: !prev[sectionId],
                           }))
                         }
-                        className="lbl text-accent-700 underline underline-offset-2 hover:text-accent"
+                        className="lbl text-accent underline underline-offset-2 hover:text-accent-hover"
                       >
                         {showDeepDive
                           ? "Hide deep-dive questions"
                           : `Go deeper (${deepDive.length} more optional questions)`}
                       </button>
                       {showDeepDive && (
-                        <div className="mt-6 space-y-8">
+                        <div className="mt-5 space-y-6">
                           {deepDive.map((q) => (
                             <QuestionCard
                               key={q.id}
@@ -331,11 +322,10 @@ export default function BiblePage() {
                   )}
                 </div>
               )}
-            </RuledRow>
+            </div>
           );
         })}
-        <Rule />
-      </div>
+      </Panel>
     </div>
   );
 }

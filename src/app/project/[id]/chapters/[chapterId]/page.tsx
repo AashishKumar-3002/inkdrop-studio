@@ -22,8 +22,10 @@ import {
   Kicker,
   Lbl,
   LoadingState,
+  Panel,
   Textarea,
   Ticks,
+  cn,
 } from "@/components/ui";
 
 type SaveStatus = "idle" | "saving" | "saved";
@@ -223,9 +225,12 @@ export default function ChapterWorkspacePage() {
 
   if (loadError) {
     return (
-      <div className="px-4 py-10 sm:px-10">
-        <div className="border-l-2 border-danger bg-danger-soft px-5 py-4 text-sm text-danger-ink" role="alert">
-          <p className="font-semibold">{loadError}</p>
+      <div className="container-app py-8">
+        <div
+          className="rounded-lg border border-danger-border bg-danger-soft px-4 py-3 text-[13px] text-danger"
+          role="alert"
+        >
+          <p className="font-medium">{loadError}</p>
           <div className="mt-3 flex gap-2">
             <Button variant="ghost" size="sm" onClick={retry}>
               Try again
@@ -245,7 +250,7 @@ export default function ChapterWorkspacePage() {
 
   if (!chapter || !project) {
     return (
-      <div className="px-4 py-10 sm:px-10">
+      <div className="container-app py-8">
         <LoadingState label="Loading chapter…" />
       </div>
     );
@@ -269,40 +274,38 @@ export default function ChapterWorkspacePage() {
   );
 
   return (
-    <div className="flex w-full flex-col px-4 py-10 sm:px-10">
+    <div className="container-app py-8">
       <Button
         variant="ghost"
         size="sm"
-        className="mb-6 w-fit px-0 text-ink-muted hover:bg-transparent hover:text-ink"
+        className="-ml-2 mb-4 text-ink-muted hover:text-ink"
         onClick={() => router.push(`/project/${id}/chapters`)}
       >
         <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
         All chapters
       </Button>
 
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0">
-          <Kicker className="mb-3">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <Kicker className="mb-1.5">
             Chapter {chapter.index} of {project.chapters.length}
           </Kicker>
-          <div className="flex items-center gap-2">
-            <label htmlFor="chapter-title" className="sr-only">
-              Chapter title
-            </label>
-            <input
-              id="chapter-title"
-              className="disp min-w-0 flex-1 border-none bg-transparent text-[clamp(28px,5vw,44px)] text-ink focus:outline-none disabled:text-ink-muted"
-              value={title}
-              disabled={locked}
-              onChange={(e) => setTitle(e.target.value)}
-              onBlur={() => saveField({ title })}
-            />
-          </div>
+          <label htmlFor="chapter-title" className="sr-only">
+            Chapter title
+          </label>
+          <input
+            id="chapter-title"
+            className="disp w-full min-w-0 border-none bg-transparent p-0 text-[clamp(22px,4vw,28px)] text-ink focus:outline-none disabled:text-ink-muted"
+            value={title}
+            disabled={locked}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={() => saveField({ title })}
+          />
           {looksUntitled && !locked ? (
             <Button
               variant="ghost"
               size="sm"
-              className="mt-2 px-0 text-ink-subtle hover:bg-transparent hover:text-ink"
+              className="-ml-2 mt-1 text-ink-subtle hover:text-ink"
               onClick={suggestTitle}
               loading={suggesting}
             >
@@ -310,6 +313,15 @@ export default function ChapterWorkspacePage() {
               Suggest a title
             </Button>
           ) : null}
+          <span className="mt-1.5 block text-xs text-ink-subtle" aria-live="polite">
+            {saveStatus === "saving"
+              ? "Saving…"
+              : saveStatus === "saved"
+              ? "Saved"
+              : dirty
+              ? "Unsaved changes"
+              : ""}
+          </span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={STATUS_TONE[chapter.status]}>{STATUS_LABEL[chapter.status]}</Badge>
@@ -319,8 +331,12 @@ export default function ChapterWorkspacePage() {
             onClick={toggleLock}
             aria-label={locked ? "Unlock chapter" : "Lock chapter"}
           >
-            {locked ? <Lock className="h-3.5 w-3.5" aria-hidden /> : <LockOpen className="h-3.5 w-3.5" aria-hidden />}
-            {locked ? "Unlock" : "Lock chapter"}
+            {locked ? (
+              <Lock className="h-3.5 w-3.5" aria-hidden />
+            ) : (
+              <LockOpen className="h-3.5 w-3.5" aria-hidden />
+            )}
+            {locked ? "Unlock" : "Lock"}
           </Button>
           {generating && (
             <Button variant="secondary" size="sm" onClick={stopGenerating}>
@@ -334,33 +350,23 @@ export default function ChapterWorkspacePage() {
         </div>
       </div>
 
-      <span className="mt-3 block text-xs text-ink-subtle" aria-live="polite">
-        {saveStatus === "saving"
-          ? "Saving…"
-          : saveStatus === "saved"
-          ? "Saved"
-          : dirty
-          ? "Unsaved changes"
-          : ""}
-      </span>
-
       {locked && (
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-l-2 border-warning bg-warning-soft px-4 py-3 text-sm text-warning-ink">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning-border bg-warning-soft px-4 py-2.5 text-[13px] text-warning">
           <span className="flex items-center gap-2">
-            <Lock className="h-4 w-4 shrink-0" aria-hidden />
+            <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden />
             This chapter is locked &mdash; earlier changes here won&rsquo;t ripple into
             later chapters by accident.
           </span>
-          <Button variant="ghost" size="sm" onClick={toggleLock} className="text-warning-ink hover:text-warning-ink">
+          <Button variant="ghost" size="sm" onClick={toggleLock} className="text-warning hover:text-warning">
             Unlock
           </Button>
         </div>
       )}
 
-      <div className="mt-8 grid grid-cols-1 border-t-2 border-line lg:grid-cols-[340px_minmax(0,1fr)]">
+      <Panel className="mt-6 lg:flex">
         {/* Left: idea, grounding, drafting progress, status */}
-        <div className="border-line bg-surface px-1 py-7 lg:w-[340px] lg:border-r-2 lg:px-8 lg:py-8">
-          <Field label="Your idea for this chapter" htmlFor="chapter-idea" className="mb-7">
+        <div className="border-b border-hair px-4 py-5 lg:w-[300px] lg:shrink-0 lg:border-b-0 lg:border-r lg:border-line lg:px-5">
+          <Field label="Your idea for this chapter" htmlFor="chapter-idea" className="mb-5">
             <Textarea
               id="chapter-idea"
               rows={5}
@@ -372,23 +378,26 @@ export default function ChapterWorkspacePage() {
             />
           </Field>
 
-          <Kicker className="mb-3">Grounded in</Kicker>
-          <div className="mono mb-7 text-sm">
-            <div className="flex items-center justify-between border-b border-hair py-2.5">
-              <span>Story bible · {bibleAnswers} answers</span>
-              <span className="mono text-ink-muted">FULL</span>
+          <Lbl className="mb-1.5 block">Grounded in</Lbl>
+          <div className="mb-5">
+            <div className="flex items-center justify-between border-b border-hair py-2 text-[13px]">
+              <span className="truncate pr-3">
+                Story bible <span className="text-ink-subtle">· {bibleAnswers} answers</span>
+              </span>
+              <span className="shrink-0 text-xs font-medium text-ink-subtle">FULL</span>
             </div>
             {priorChapters.map((c, i) => (
               <div
                 key={c.id}
-                className={`flex items-center justify-between py-2.5 ${
-                  i < priorChapters.length - 1 ? "border-b border-hair" : ""
-                }`}
+                className={cn(
+                  "flex items-center justify-between py-2 text-[13px] text-ink-muted",
+                  i < priorChapters.length - 1 && "border-b border-hair"
+                )}
               >
                 <span className="truncate pr-3">
                   Ch. {String(c.index).padStart(2, "0")} {c.title || "Untitled"}
                 </span>
-                <span className="mono shrink-0 text-ink-muted">
+                <span className="shrink-0 text-xs font-medium text-ink-subtle">
                   {i < fullWindow ? "FULL" : "ROLLED"}
                 </span>
               </div>
@@ -396,24 +405,23 @@ export default function ChapterWorkspacePage() {
           </div>
 
           {generating && (
-            <>
-              <Kicker className="mb-3">Drafting</Kicker>
+            <div className="mb-5">
+              <Lbl className="mb-1.5 block">Drafting</Lbl>
               <Ticks value={Math.min(1, wordCount / targetWords)} />
-              <p className="mono mt-2.5 mb-6 text-ink-muted">
-                {wordCount.toLocaleString()} / {targetWords.toLocaleString()} WORDS · STREAMING
+              <p className="mt-2 text-xs text-ink-muted">
+                {wordCount.toLocaleString()} / {targetWords.toLocaleString()} words · streaming
               </p>
-            </>
+            </div>
           )}
 
-          <hr className="mb-4 h-px border-0 bg-hair" />
-          <div className="space-y-3">
+          <div className="space-y-3 border-t border-hair pt-4">
             <div>
               <Lbl className="mb-1 block">Status</Lbl>
               <Badge tone={STATUS_TONE[chapter.status]}>{STATUS_LABEL[chapter.status]}</Badge>
             </div>
             <div>
               <Lbl className="mb-1 block">Lock</Lbl>
-              <p className="text-sm text-ink-muted">
+              <p className="text-xs text-ink-muted">
                 {locked
                   ? "Locked — text, regeneration and deletion are frozen."
                   : "Open — locking freezes text, regeneration and deletion."}
@@ -423,22 +431,27 @@ export default function ChapterWorkspacePage() {
         </div>
 
         {/* Right: chapter text */}
-        <div className="flex flex-1 flex-col px-1 py-7 lg:px-8 lg:py-8">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-3">
-              <span id="chapter-text-label" className="lbl">
-                Chapter text — fully editable
-              </span>
-              <div role="tablist" aria-labelledby="chapter-text-label" className="flex border border-line">
+        <div className="flex flex-1 flex-col px-4 py-5 lg:min-w-0 lg:px-5">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Lbl id="chapter-text-label">Chapter text</Lbl>
+              <div
+                role="tablist"
+                aria-labelledby="chapter-text-label"
+                className="inline-flex items-center gap-0.5 rounded-lg border border-line bg-surface-2 p-0.5"
+              >
                 <button
                   role="tab"
                   id="tab-edit"
                   aria-selected={tab === "edit"}
                   aria-controls="panel-edit"
                   onClick={() => setTab("edit")}
-                  className={`lbl px-3 py-1.5 transition-colors ${
-                    tab === "edit" ? "bg-accent text-accent-ink" : "text-ink-muted hover:text-ink"
-                  }`}
+                  className={cn(
+                    "rounded-[6px] px-2.5 py-1 text-[13px] transition-colors",
+                    tab === "edit"
+                      ? "bg-surface font-medium text-ink shadow-xs"
+                      : "text-ink-muted hover:text-ink"
+                  )}
                 >
                   Edit
                 </button>
@@ -448,19 +461,22 @@ export default function ChapterWorkspacePage() {
                   aria-selected={tab === "preview"}
                   aria-controls="panel-preview"
                   onClick={() => setTab("preview")}
-                  className={`lbl border-l border-line px-3 py-1.5 transition-colors ${
-                    tab === "preview" ? "bg-accent text-accent-ink" : "text-ink-muted hover:text-ink"
-                  }`}
+                  className={cn(
+                    "rounded-[6px] px-2.5 py-1 text-[13px] transition-colors",
+                    tab === "preview"
+                      ? "bg-surface font-medium text-ink shadow-xs"
+                      : "text-ink-muted hover:text-ink"
+                  )}
                 >
                   Preview
                 </button>
               </div>
             </div>
-            <span className="mono text-ink-muted" aria-live="polite">
+            <span className="tnum text-xs text-ink-muted" aria-live="polite">
               {generating
-                ? "GENERATING…"
-                : `${wordCount.toLocaleString()} WORDS${
-                    saveStatus === "saved" ? " · SAVED" : ""
+                ? "Generating…"
+                : `${wordCount.toLocaleString()} words${
+                    saveStatus === "saved" ? " · saved" : ""
                   }`}
             </span>
           </div>
@@ -473,7 +489,7 @@ export default function ChapterWorkspacePage() {
               <Textarea
                 id="chapter-content"
                 ref={contentRef}
-                className="h-[60vh] resize-none font-serif text-[15px] leading-relaxed"
+                className="h-[55vh] resize-none text-[15px] leading-relaxed"
                 value={content}
                 disabled={locked}
                 onChange={(e) => setContent(e.target.value)}
@@ -486,7 +502,7 @@ export default function ChapterWorkspacePage() {
               id="panel-preview"
               role="tabpanel"
               aria-labelledby="tab-preview"
-              className="prose-manuscript h-[60vh] max-w-none overflow-y-auto border border-line bg-surface-2 p-6"
+              className="prose-manuscript h-[55vh] max-w-none overflow-y-auto rounded-lg border border-line bg-surface-2 p-5"
             >
               {content.trim() ? (
                 content.split(/\n{2,}/).map((para, i, arr) => (
@@ -501,15 +517,15 @@ export default function ChapterWorkspacePage() {
             </div>
           )}
 
-          <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t-2 border-line pt-5">
-            <div className="mono flex flex-wrap items-center gap-2 text-ink-muted">
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-hair pt-4">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-ink-muted">
               {prevChapter ? (
                 <button
                   onClick={() => router.push(`/project/${id}/chapters/${prevChapter.id}`)}
                   className="flex items-center gap-1 transition-colors hover:text-ink"
                 >
                   <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
-                  CH. {String(prevChapter.index).padStart(2, "0")} PREVIOUS
+                  Ch. {String(prevChapter.index).padStart(2, "0")} previous
                 </button>
               ) : (
                 <span />
@@ -520,7 +536,7 @@ export default function ChapterWorkspacePage() {
                   onClick={() => router.push(`/project/${id}/chapters/${nextChapter.id}`)}
                   className="flex items-center gap-1 transition-colors hover:text-ink"
                 >
-                  NEXT CH. {String(nextChapter.index).padStart(2, "0")}
+                  Next ch. {String(nextChapter.index).padStart(2, "0")}
                   <ChevronRight className="h-3.5 w-3.5" aria-hidden />
                 </button>
               )}
@@ -530,24 +546,29 @@ export default function ChapterWorkspacePage() {
                 Stop generating
               </Button>
             ) : (
-              <Button variant="secondary" size="sm" disabled={locked} onClick={() => saveField({ content, status: "final" })}>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={locked}
+                onClick={() => saveField({ content, status: "final" })}
+              >
                 Mark as final
               </Button>
             )}
           </div>
         </div>
-      </div>
+      </Panel>
 
-      <div className="mt-6 flex flex-wrap items-center gap-2 text-xs">
-        <span className="flex items-center gap-1 text-ink-subtle">
+      <div className="mt-5 flex flex-wrap items-center gap-2 text-xs text-ink-subtle">
+        <span className="flex items-center gap-1">
           <Download className="h-3.5 w-3.5" aria-hidden />
-          Export this chapter:
+          Export:
         </span>
         {(["md", "pdf", "epub"] as const).map((fmt) => (
           <a
             key={fmt}
             href={`/api/projects/${id}/chapters/${chapterId}/export?format=${fmt}`}
-            className="border border-line px-3 py-1.5 text-ink-muted transition-colors hover:border-line-strong hover:text-ink"
+            className="rounded-md border border-line px-2.5 py-1 text-ink-muted transition-colors hover:border-line-strong hover:text-ink"
           >
             .{fmt}
           </a>

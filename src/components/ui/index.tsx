@@ -1,11 +1,9 @@
 /**
- * Inkdrop Studio's UI kit — Modernist.
+ * Inkdrop Studio's UI kit.
  *
- * Square corners, 2px structural rules, Archivo at weight 800 for anything
- * that carries hierarchy, and one accent used sparingly and loudly. Each
- * component is a thin wrapper over a native element that keeps the tokens,
- * focus rings and disabled states consistent and passes everything else
- * through.
+ * Minimal and dense: quiet 1px borders, soft shadows for depth, 8–12px
+ * radii, and a near-black primary action so the indigo accent stays rare
+ * enough to mean something.
  */
 "use client";
 
@@ -14,8 +12,28 @@ import { Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/cn";
 
-// Re-exported so client components can keep importing it from the kit.
 export { cn };
+
+/* ------------------------------------------------------------------ */
+/* Layout                                                              */
+/* ------------------------------------------------------------------ */
+
+/** The centred measure every screen sits in. */
+export function Container({
+  narrow,
+  className,
+  children,
+}: {
+  narrow?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={cn(narrow ? "container-narrow" : "container-app", className)}>
+      {children}
+    </div>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /* Button                                                              */
@@ -26,22 +44,22 @@ type ButtonSize = "sm" | "md" | "lg" | "icon";
 
 const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
   primary:
-    "bg-accent text-accent-ink border-accent hover:bg-accent-hover hover:border-accent-hover active:bg-accent-active disabled:hover:bg-accent",
+    "bg-solid text-solid-ink border-transparent shadow-xs hover:bg-solid-hover disabled:hover:bg-solid",
   secondary:
-    "border-line text-ink hover:bg-[color-mix(in_srgb,var(--ink)_7%,transparent)] active:bg-[color-mix(in_srgb,var(--ink)_14%,transparent)]",
+    "bg-surface text-ink border-line shadow-xs hover:bg-surface-2 hover:border-line-strong disabled:hover:bg-surface",
   ghost:
-    "border-transparent text-accent hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] active:bg-[color-mix(in_srgb,var(--accent)_18%,transparent)]",
+    "bg-transparent text-ink-muted border-transparent hover:bg-surface-2 hover:text-ink",
   danger:
-    "bg-danger text-paper border-danger hover:opacity-90 disabled:hover:opacity-100",
+    "bg-danger text-white border-transparent shadow-xs hover:opacity-90 disabled:hover:opacity-100",
   subtle:
-    "border-transparent bg-surface text-ink hover:bg-surface-2 active:bg-surface-3",
+    "bg-surface-2 text-ink border-transparent hover:bg-surface-3",
 };
 
 const BUTTON_SIZES: Record<ButtonSize, string> = {
-  sm: "h-8 px-2.5 text-xs gap-1.5",
-  md: "h-9 px-3.5 text-sm gap-2",
-  lg: "h-12 px-5 text-[15px] gap-2",
-  icon: "h-9 w-9 justify-center",
+  sm: "h-8 px-2.5 text-[13px] gap-1.5 rounded-md",
+  md: "h-9 px-3.5 text-[13px] gap-1.5 rounded-lg",
+  lg: "h-11 px-5 text-sm gap-2 rounded-lg",
+  icon: "h-8 w-8 justify-center rounded-md",
 };
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -57,20 +75,21 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ) => (
     <button
       ref={ref}
-      // A loading button stays focusable but announces its busy state, so a
-      // screen reader user isn't silently dropped out of the tab order.
+      // Stays focusable while busy so a screen reader user isn't dropped
+      // out of the tab order mid-action.
       aria-busy={loading || undefined}
       disabled={disabled || loading}
       className={cn(
-        "inline-flex items-center border font-display font-extrabold leading-tight",
-        "transition-colors disabled:opacity-45 disabled:cursor-not-allowed",
+        "inline-flex shrink-0 items-center whitespace-nowrap border font-medium",
+        "transition-[background-color,border-color,opacity,box-shadow] duration-150",
+        "disabled:opacity-50 disabled:cursor-not-allowed",
         BUTTON_VARIANTS[variant],
         BUTTON_SIZES[size],
         className
       )}
       {...props}
     >
-      {loading && <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />}
+      {loading && <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" aria-hidden />}
       {children}
     </button>
   )
@@ -78,14 +97,15 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 Button.displayName = "Button";
 
 /* ------------------------------------------------------------------ */
-/* Inputs                                                              */
+/* Form controls                                                       */
 /* ------------------------------------------------------------------ */
 
 const FIELD_BASE =
-  "w-full border border-line bg-surface px-2.5 py-1.5 text-sm text-ink " +
-  "placeholder:text-ink-subtle caret-accent transition-colors " +
-  "hover:border-line-strong focus:border-accent focus-visible:outline-offset-0 " +
-  "disabled:cursor-not-allowed disabled:opacity-60";
+  "w-full rounded-lg border border-line bg-surface px-3 text-[13px] text-ink shadow-xs " +
+  "placeholder:text-ink-subtle transition-[border-color,box-shadow] duration-150 " +
+  "hover:border-line-strong " +
+  "focus:border-accent focus:ring-[3px] focus:ring-accent/15 focus-visible:outline-none " +
+  "disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-ink-muted";
 
 export const Input = React.forwardRef<
   HTMLInputElement,
@@ -99,7 +119,11 @@ export const Textarea = React.forwardRef<
   HTMLTextAreaElement,
   React.TextareaHTMLAttributes<HTMLTextAreaElement>
 >(({ className, ...props }, ref) => (
-  <textarea ref={ref} className={cn(FIELD_BASE, "min-h-[90px] resize-y", className)} {...props} />
+  <textarea
+    ref={ref}
+    className={cn(FIELD_BASE, "min-h-[88px] resize-y py-2 leading-relaxed", className)}
+    {...props}
+  />
 ));
 Textarea.displayName = "Textarea";
 
@@ -118,10 +142,13 @@ export function Label({
   ...props
 }: React.LabelHTMLAttributes<HTMLLabelElement> & { required?: boolean }) {
   return (
-    <label className={cn("block text-xs text-ink-muted mb-1.5", className)} {...props}>
+    <label
+      className={cn("mb-1.5 block text-[13px] font-medium text-ink", className)}
+      {...props}
+    >
       {children}
       {required && (
-        <span className="text-danger ml-0.5" aria-label="required">
+        <span className="ml-0.5 text-danger" aria-label="required">
           *
         </span>
       )}
@@ -169,7 +196,6 @@ export function Field({
 /* Type                                                                */
 /* ------------------------------------------------------------------ */
 
-/** Small uppercase section marker, set in the accent. */
 export function Kicker({
   className,
   children,
@@ -180,7 +206,6 @@ export function Kicker({
   return <span className={cn("kicker", className)}>{children}</span>;
 }
 
-/** Uppercase micro-label used for column heads and field groups. */
 export function Lbl({
   className,
   children,
@@ -194,12 +219,12 @@ export function Lbl({
 }
 
 /**
- * The page's display heading. `size` is a raw pixel value because these are
- * deliberately set per-screen rather than snapped to a type scale.
+ * Page/section display heading. `size` is the desktop pixel size; it scales
+ * down fluidly so a long title never overflows a phone.
  */
 export function Display({
   as: Tag = "h1",
-  size = 52,
+  size = 30,
   className,
   children,
 }: {
@@ -211,19 +236,17 @@ export function Display({
   return (
     <Tag
       className={cn("disp", className)}
-      style={{ fontSize: `clamp(30px, 6vw, ${size}px)` }}
+      style={{ fontSize: `clamp(${Math.min(size, 26)}px, 4.2vw, ${size}px)` }}
     >
       {children}
     </Tag>
   );
 }
 
-/** The 2px structural rule that separates bands of content. */
 export function Rule({ className }: { className?: string }) {
-  return <hr className={cn("h-0.5 border-0 bg-line", className)} />;
+  return <hr className={cn("h-px border-0 bg-line", className)} />;
 }
 
-/** The 1px sub-divider used inside a band. */
 export function Hair({ className }: { className?: string }) {
   return <hr className={cn("h-px border-0 bg-hair", className)} />;
 }
@@ -232,16 +255,12 @@ export function Hair({ className }: { className?: string }) {
 /* Page furniture                                                      */
 /* ------------------------------------------------------------------ */
 
-/**
- * Standard page header: kicker, display heading, and right-aligned actions
- * that drop below the heading on narrow screens.
- */
 export function PageHeader({
   kicker,
   title,
   description,
   actions,
-  size = 52,
+  size = 28,
   className,
 }: {
   kicker?: React.ReactNode;
@@ -254,26 +273,27 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        "flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between",
+        "flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between",
         className
       )}
     >
       <div className="min-w-0">
-        {kicker && <Kicker className="mb-3">{kicker}</Kicker>}
+        {kicker && <Kicker className="mb-1.5">{kicker}</Kicker>}
         <Display size={size}>{title}</Display>
         {description && (
-          <p className="mt-4 max-w-[58ch] text-ink-muted">{description}</p>
+          <p className="mt-2 max-w-[62ch] text-ink-muted">{description}</p>
         )}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && (
+        <div className="flex flex-wrap items-center gap-2 sm:shrink-0">{actions}</div>
+      )}
     </div>
   );
 }
 
 /**
- * A ruled list row with a hung number. The number column and the accent
- * square that marks it are what make a list read as a system rather than as
- * a stack of cards.
+ * A row in a list. Rows sit inside a bordered panel and are separated by
+ * hairlines, so a list reads as one object rather than as a stack of cards.
  */
 export function RuledRow({
   index,
@@ -288,22 +308,42 @@ export function RuledRow({
   return (
     <div
       className={cn(
-        "grid items-baseline gap-x-6 gap-y-3 border-t-2 border-line py-4 pl-6",
-        "grid-cols-[minmax(0,1fr)] sm:grid-cols-[46px_minmax(0,1fr)]",
-        highlighted && "bg-accent-100",
+        "grid items-center gap-x-4 gap-y-2 px-4 py-3 transition-colors",
+        "border-b border-hair last:border-b-0",
+        "grid-cols-[minmax(0,1fr)] sm:grid-cols-[28px_minmax(0,1fr)]",
+        highlighted ? "bg-accent-soft" : "hover:bg-surface-2",
         className
       )}
       {...props}
     >
       {index !== undefined && (
-        <p className="rnum hidden sm:block">{index}</p>
+        <span className="tnum hidden text-xs text-ink-subtle sm:block">{index}</span>
       )}
       {children}
     </div>
   );
 }
 
-/** A band of large accent figures — the system's headline statistic row. */
+/** The bordered panel that list rows live in. */
+export function Panel({
+  className,
+  children,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn(
+        "overflow-hidden rounded-xl border border-line bg-surface shadow-card",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Compact metric tiles. Numbers first, label under, no giant type. */
 export function StatBand({
   stats,
   className,
@@ -314,16 +354,17 @@ export function StatBand({
   return (
     <div
       className={cn(
-        "grid grid-cols-2 gap-6 md:flex md:justify-between md:gap-7",
+        "grid grid-cols-2 gap-3 sm:grid-cols-4",
         className
       )}
     >
       {stats.map((s, i) => (
-        <div key={i}>
-          <p className="disp tnum m-0 text-[clamp(28px,5vw,44px)] leading-none text-accent">
-            {s.value}
-          </p>
-          <span className="lbl mt-2.5 block">{s.label}</span>
+        <div
+          key={i}
+          className="rounded-xl border border-line bg-surface px-4 py-3.5 shadow-xs"
+        >
+          <p className="tnum disp text-2xl text-ink">{s.value}</p>
+          <span className="mt-1 block text-xs text-ink-muted">{s.label}</span>
         </div>
       ))}
     </div>
@@ -331,18 +372,18 @@ export function StatBand({
 }
 
 /* ------------------------------------------------------------------ */
-/* Tags                                                                */
+/* Badges                                                              */
 /* ------------------------------------------------------------------ */
 
 type BadgeTone = "neutral" | "accent" | "outline" | "success" | "warning" | "danger";
 
 const BADGE_TONES: Record<BadgeTone, string> = {
-  neutral: "bg-surface-2 text-ink-muted border-transparent",
-  accent: "bg-accent-100 text-accent-800 border-transparent",
-  outline: "border-accent text-accent",
-  success: "bg-success-soft text-success-ink border-transparent",
-  warning: "bg-warning-soft text-warning-ink border-transparent",
-  danger: "bg-danger-soft text-danger-ink border-transparent",
+  neutral: "bg-surface-2 text-ink-muted border-line",
+  accent: "bg-accent-soft text-accent border-accent-border",
+  outline: "bg-transparent text-ink-muted border-line-strong",
+  success: "bg-success-soft text-success border-success-border",
+  warning: "bg-warning-soft text-warning border-warning-border",
+  danger: "bg-danger-soft text-danger border-danger-border",
 };
 
 export function Badge({
@@ -357,7 +398,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 border px-2.5 py-0.5 text-[11px] tracking-[0.02em] whitespace-nowrap",
+        "inline-flex items-center gap-1 whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[11px] font-medium",
         BADGE_TONES[tone],
         className
       )}
@@ -371,7 +412,6 @@ export function Badge({
 /* Controls                                                            */
 /* ------------------------------------------------------------------ */
 
-/** A tap-to-select chip — the questionnaire's main control. */
 export function Chip({
   selected,
   className,
@@ -383,10 +423,10 @@ export function Chip({
       type="button"
       aria-pressed={selected}
       className={cn(
-        "inline-flex items-center border px-3 py-2 text-sm transition-colors",
+        "inline-flex items-center rounded-lg border px-2.5 py-1.5 text-[13px] transition-colors",
         selected
-          ? "border-accent bg-accent text-accent-ink"
-          : "border-line bg-surface text-ink hover:bg-surface-2",
+          ? "border-accent bg-accent-soft font-medium text-accent"
+          : "border-line bg-surface text-ink-muted hover:border-line-strong hover:text-ink",
         className
       )}
       {...props}
@@ -396,7 +436,7 @@ export function Chip({
   );
 }
 
-/** Segmented control — mutually exclusive options in one bordered block. */
+/** Segmented control — a single inset track with a raised active pill. */
 export function Segmented<T extends string>({
   options,
   value,
@@ -414,22 +454,24 @@ export function Segmented<T extends string>({
 }) {
   return (
     <div
-      className={cn("inline-flex border border-line", className)}
+      className={cn(
+        "inline-flex items-center gap-0.5 rounded-lg border border-line bg-surface-2 p-0.5",
+        className
+      )}
       role="radiogroup"
       aria-label={ariaLabel}
     >
-      {options.map((opt, i) => {
+      {options.map((opt) => {
         const active = opt.value === value;
         return (
           <label
             key={opt.value}
             className={cn(
-              "inline-flex cursor-pointer items-center gap-1.5 px-3 py-1.5 text-[13px] transition-colors",
-              i > 0 && "border-l border-line",
+              "inline-flex cursor-pointer items-center gap-1.5 rounded-[6px] px-2.5 py-1 text-[13px] transition-colors",
               active
-                ? "bg-accent text-accent-ink"
-                : "hover:bg-[color-mix(in_srgb,var(--ink)_7%,transparent)]",
-              "has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:-outline-offset-2 has-[:focus-visible]:outline-accent"
+                ? "bg-surface font-medium text-ink shadow-xs"
+                : "text-ink-muted hover:text-ink",
+              "has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-1 has-[:focus-visible]:outline-accent"
             )}
           >
             <input
@@ -447,28 +489,28 @@ export function Segmented<T extends string>({
   );
 }
 
-/** Discrete progress ticks, used while a chapter streams. */
+/** Slim determinate progress bar. */
 export function Ticks({
   value,
-  total = 10,
   className,
 }: {
   value: number;
   total?: number;
   className?: string;
 }) {
-  const filled = Math.max(0, Math.min(total, Math.round(value * total)));
+  const pct = Math.max(0, Math.min(100, Math.round(value * 100)));
   return (
     <div
-      className={cn("ticks", className)}
+      className={cn("h-1 w-full overflow-hidden rounded-full bg-surface-3", className)}
       role="progressbar"
-      aria-valuenow={Math.round(value * 100)}
+      aria-valuenow={pct}
       aria-valuemin={0}
       aria-valuemax={100}
     >
-      {Array.from({ length: total }, (_, i) => (
-        <i key={i} className={i < filled ? "on" : undefined} />
-      ))}
+      <div
+        className="h-full rounded-full bg-accent transition-[width] duration-300"
+        style={{ width: `${pct}%` }}
+      />
     </div>
   );
 }
@@ -477,17 +519,19 @@ export function Ticks({
 /* Surfaces                                                            */
 /* ------------------------------------------------------------------ */
 
-/**
- * A panel. In this system a "card" is a flat tinted block, not a floating
- * rounded object — elevation is reserved for things that genuinely overlay.
- */
 export function Card({
   className,
   children,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("border border-line bg-surface", className)} {...props}>
+    <div
+      className={cn(
+        "rounded-xl border border-line bg-surface shadow-card",
+        className
+      )}
+      {...props}
+    >
       {children}
     </div>
   );
@@ -507,13 +551,13 @@ export function CardHeader({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-start justify-between gap-3 border-b-2 border-line px-5 py-3.5",
+        "flex flex-wrap items-start justify-between gap-3 border-b border-hair px-4 py-3",
         className
       )}
     >
       <div className="min-w-0">
-        <h2 className="text-base">{title}</h2>
-        {description && <p className="mt-1 text-xs text-ink-muted">{description}</p>}
+        <h2 className="text-sm font-semibold">{title}</h2>
+        {description && <p className="mt-0.5 text-xs text-ink-muted">{description}</p>}
       </div>
       {action}
     </div>
@@ -533,7 +577,7 @@ export function Spinner({ className }: { className?: string }) {
 export function LoadingState({ label = "Loading…" }: { label?: string }) {
   return (
     <div
-      className="flex items-center justify-center gap-2 py-16 text-sm text-ink-muted"
+      className="flex items-center justify-center gap-2 py-14 text-[13px] text-ink-muted"
       role="status"
     >
       <Spinner />
@@ -546,33 +590,39 @@ export function Skeleton({ className }: { className?: string }) {
   return <div className={cn("skeleton", className)} aria-hidden />;
 }
 
-/**
- * Empty states are a full editorial statement here, not a grey box with a
- * shrug — they're the screen a new user sees most often.
- */
 export function EmptyState({
   kicker,
+  icon,
   title,
   description,
   action,
   className,
 }: {
   kicker?: React.ReactNode;
+  icon?: React.ReactNode;
   title: React.ReactNode;
   description?: React.ReactNode;
   action?: React.ReactNode;
   className?: string;
 }) {
   return (
-    <div className={cn("border-t-2 border-line py-12", className)}>
-      {kicker && <Kicker className="mb-3">{kicker}</Kicker>}
-      <h2 className="disp max-w-[22ch] text-[clamp(26px,4.5vw,40px)]">{title}</h2>
-      {description && (
-        <p className="mt-5 max-w-[52ch] leading-[var(--leading)] text-ink-muted">
-          {description}
-        </p>
+    <div
+      className={cn(
+        "flex flex-col items-center rounded-xl border border-dashed border-line-strong bg-surface/60 px-6 py-12 text-center",
+        className
       )}
-      {action && <div className="mt-6 flex flex-wrap items-center gap-2">{action}</div>}
+    >
+      {icon && (
+        <div className="mb-3.5 grid h-10 w-10 place-items-center rounded-lg border border-line bg-surface text-ink-muted shadow-xs">
+          {icon}
+        </div>
+      )}
+      {kicker && <Kicker className="mb-1.5">{kicker}</Kicker>}
+      <h3 className="max-w-[26ch] text-base font-semibold">{title}</h3>
+      {description && (
+        <p className="mt-1.5 max-w-[46ch] text-[13px] text-ink-muted">{description}</p>
+      )}
+      {action && <div className="mt-5 flex flex-wrap justify-center gap-2">{action}</div>}
     </div>
   );
 }
@@ -586,17 +636,14 @@ export function ErrorState({
 }) {
   return (
     <div
-      className="border-l-2 border-danger bg-danger-soft px-5 py-4 text-sm text-danger-ink"
+      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-danger-border bg-danger-soft px-4 py-3 text-[13px] text-danger"
       role="alert"
     >
-      <p className="font-semibold">{message}</p>
+      <p className="font-medium">{message}</p>
       {onRetry && (
-        <button
-          onClick={onRetry}
-          className="lbl mt-2 text-danger-ink underline underline-offset-2"
-        >
+        <Button variant="secondary" size="sm" onClick={onRetry}>
           Try again
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -606,11 +653,6 @@ export function ErrorState({
 /* Dialog                                                              */
 /* ------------------------------------------------------------------ */
 
-/**
- * A modal built on the native <dialog> semantics we actually need: focus is
- * trapped by rendering over a backdrop, Escape closes, and the initial focus
- * lands on the panel rather than on the destructive button.
- */
 export function Dialog({
   open,
   onClose,
@@ -635,7 +677,7 @@ export function Dialog({
     }
     document.addEventListener("keydown", onKeyDown);
     panelRef.current?.focus();
-    // Stop the page behind the modal from scrolling under it.
+    // Stop the page behind the modal scrolling under it.
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -648,7 +690,7 @@ export function Dialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-[color-mix(in_srgb,black_55%,transparent)] p-4"
+      className="fixed inset-0 z-50 grid place-items-center bg-[rgb(10_10_14/0.45)] p-4 backdrop-blur-[2px]"
       onClick={onClose}
     >
       <div
@@ -657,13 +699,12 @@ export function Dialog({
         aria-modal="true"
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="animate-fade-in w-full max-w-[480px] border border-line bg-paper p-5 shadow-overlay outline-none"
+        className="animate-fade-in w-full max-w-[440px] rounded-xl border border-line bg-surface p-5 shadow-overlay outline-none"
       >
         {kicker && <Kicker className="mb-1">{kicker}</Kicker>}
-        <h2 className="text-[26px] tracking-[-0.015em]">{title}</h2>
-        {children && <div className="mt-3 text-sm text-ink-muted">{children}</div>}
-        <Rule className="my-4" />
-        <div className="flex flex-wrap gap-2">{actions}</div>
+        <h2 className="text-lg font-semibold">{title}</h2>
+        {children && <div className="mt-2 text-[13px] text-ink-muted">{children}</div>}
+        <div className="mt-5 flex flex-wrap justify-end gap-2">{actions}</div>
       </div>
     </div>
   );

@@ -13,13 +13,23 @@ import { AI_PROVIDER_IDS } from "@/lib/types";
 beforeEach(() => {
   process.env.ENCRYPTION_KEY = "c".repeat(64);
   for (const id of AI_PROVIDER_IDS) delete process.env[envVarFor(id)];
+  // Every test starts as the web build; the desktop-only cases opt in.
+  delete process.env.INKDROP_DESKTOP;
 });
+
+/** Runs `fn` as if inside the Electron shell, which sets INKDROP_DESKTOP=1. */
+function onDesktop<T>(fn: () => T): T {
+  process.env.INKDROP_DESKTOP = "1";
+  try {
+    return fn();
+  } finally {
+    delete process.env.INKDROP_DESKTOP;
+  }
+}
 
 describe("provider registry", () => {
   it("registers every declared provider id, including the new ones", () => {
-    expect(Object.keys(PROVIDERS).sort()).toEqual(
-      ["anthropic", "nvidia", "openai", "openrouter"].sort()
-    );
+    expect(Object.keys(PROVIDERS).sort()).toEqual([...AI_PROVIDER_IDS].sort());
   });
 
   it("gives every provider a default model that exists in its own list", () => {
@@ -31,12 +41,28 @@ describe("provider registry", () => {
 
   it("exposes a serializable catalogue for the settings UI", () => {
     const catalogue = providerCatalogue();
-    expect(catalogue).toHaveLength(4);
     for (const entry of catalogue) {
       expect(entry.label).toBeTruthy();
       expect(entry.envVar).toMatch(/API_KEY$/);
       expect(entry.models.length).toBeGreaterThan(0);
+      expect(entry.usesSubscription).toBe(false);
     }
+  });
+
+  it("hides the subscription provider from the web build", () => {
+    // It authenticates through the Claude session on the user's own machine,
+    // which a server rendering for many users does not have.
+    expect(providerCatalogue().map((p) => p.id)).not.toContain("claude-subscription");
+  });
+
+  it("offers the subscription provider, keyless, inside the desktop app", () => {
+    const entry = onDesktop(() =>
+      providerCatalogue().find((p) => p.id === "claude-subscription")
+    );
+    expect(entry).toBeDefined();
+    expect(entry!.usesSubscription).toBe(true);
+    // No env var, because there is no key to put in one.
+    expect(entry!.envVar).toBe("");
   });
 
   it("falls back to a known provider for an unrecognised id", () => {
@@ -73,6 +99,16 @@ describe("resolveApiKey", () => {
     const stored = { openai: encryptSecret("old") };
     process.env.ENCRYPTION_KEY = "c".repeat(64);
     expect(resolveApiKey("openai", stored)).toBe("env-key");
+  });
+
+  it("has nothing to resolve for the subscription provider off-desktop", () => {
+    // Callers turn undefined into "no key configured", which is what should
+    // happen if a saved project asks for this provider on the web.
+    expect(resolveApiKey("claude-subscription", {})).toBeUndefined();
+  });
+
+  it("resolves the subscription provider without a key inside the desktop app", () => {
+    expect(onDesktop(() => resolveApiKey("claude-subscription", {}))).toBeTruthy();
   });
 });
 

@@ -1,0 +1,269 @@
+"use strict";
+
+const path = require("node:path");
+const fs = require("node:fs");
+const {
+  app,
+  BrowserWindow,
+  Menu,
+  dialog,
+  shell,
+  ipcMain,
+  session,
+} = require("electron");
+
+const { loadConfig, saveConfig } = require("./config");
+const { startServer } = require("./server");
+
+/** In a packaged app the server lives in resources; in dev it's the repo. */
+function resolveServerDir() {
+  const packaged = path.join(process.resourcesPath || "", "server");
+  if (fs.existsSync(path.join(packaged, "server.js"))) return packaged;
+  return path.join(__dirname, "..", "..", ".next", "standalone");
+}
+
+let mainWindow = null;
+let serverChild = null;
+const logLines = [];
+
+function log(line) {
+  logLines.push(line);
+  if (logLines.length > 500) logLines.shift();
+  if (process.env.INKDROP_DEBUG) console.log("[server]", line);
+}
+
+function createWindow() {
+  const win = new BrowserWindow({
+    width: 1280,
+    height: 860,
+    minWidth: 900,
+    minHeight: 600,
+    // The app paints its own chrome-coloured background; matching it here
+    // avoids a white flash before the first frame.
+    backgroundColor: "#fbfbfc",
+    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      spellcheck: true,
+    },
+  });
+
+  win.once("ready-to-show", () => win.show());
+
+  // Anything that isn't our own localhost origin opens in the real browser
+  // rather than navigating the app window.
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: "deny" };
+  });
+  win.webContents.on("will-navigate", (event, url) => {
+    const target = new URL(url);
+    if (target.hostname !== "127.0.0.1") {
+      event.preventDefault();
+      shell.openExternal(url);
+    }
+  });
+
+  return win;
+}
+
+/**
+ * Exports are served as attachment downloads. In a browser that's a file in
+ * the Downloads folder; in a desktop app the user expects a Save dialog, so
+ * we intercept and drive it ourselves.
+ */
+function wireDownloads(ses) {
+  ses.on("will-download", (event, item) => {
+    const suggested = item.getFilename();
+    const target = dialog.showSaveDialogSync(mainWindow, {
+      title: "Save export",
+      defaultPath: path.join(app.getPath("documents"), suggested),
+    });
+    if (!target) {
+      item.cancel();
+      return;
+    }
+    item.setSavePath(target);
+    item.once("done", (_e, state) => {
+      if (state === "completed") shell.showItemInFolder(target);
+      else if (state !== "cancelled") {
+        dialog.showErrorBox("Export failed", `Could not save ${suggested}.`);
+      }
+    });
+  });
+}
+
+function buildMenu(appUrl) {
+  const isMac = process.platform === "darwin";
+  const template = [
+    ...(isMac ? [{ role: "appMenu" }] : []),
+    {
+      label: "File",
+      submenu: [
+        {
+          label: "New Project",
+          accelerator: "CmdOrCtrl+N",
+          click: () => mainWindow?.loadURL(`${appUrl}/dashboard`),
+        },
+        { type: "separator" },
+        isMac ? { role: "close" } : { role: "quit" },
+      ],
+    },
+    { role: "editMenu" },
+    {
+      label: "View",
+      submenu: [
+        { role: "reload" },
+        { role: "toggleDevTools" },
+        { type: "separator" },
+        { role: "resetZoom" },
+        { role: "zoomIn" },
+        { role: "zoomOut" },
+        { type: "separator" },
+        { role: "togglefullscreen" },
+      ],
+    },
+    { role: "windowMenu" },
+    {
+      role: "help",
+      submenu: [
+        {
+          label: "Show Server Log",
+          click: () => {
+            dialog.showMessageBox(mainWindow, {
+              type: "info",
+              message: "Server log (most recent lines)",
+              detail: logLines.slice(-40).join("\n") || "(empty)",
+            });
+          },
+        },
+      ],
+    },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
+/** Shown when there's no database configured yet, instead of a blank window. */
+function loadSetupScreen(win, message) {
+  const html = `<!doctype html><meta charset="utf-8">
+<style>
+  :root { color-scheme: light dark; }
+  body { margin:0; min-height:100vh; display:grid; place-items:center;
+         font: 14px/1.6 ui-sans-serif, system-ui, sans-serif;
+         background:#fbfbfc; color:#17171a; }
+  @media (prefers-color-scheme: dark) { body { background:#0b0b0e; color:#f4f4f6; } }
+  main { max-width: 460px; padding: 32px; }
+  h1 { font-size: 20px; margin: 0 0 8px; letter-spacing:-0.02em; }
+  p { margin: 0 0 12px; opacity: .75; }
+  code { font: 12px ui-monospace, Menlo, monospace; background: rgba(127,127,127,.14);
+         padding: 2px 6px; border-radius: 4px; }
+</style>
+<main>
+  <h1>Inkdrop needs a database</h1>
+  <p>${message}</p>
+  <p>Set a Postgres connection string in <code>config.json</code> under the app's
+     data folder, as <code>"databaseUrl"</code>, then reopen the app.</p>
+  <p><code>${app.getPath("userData")}</code></p>
+</main>`;
+  win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+  win.show();
+}
+
+async function boot() {
+  const config = loadConfig();
+  mainWindow = createWindow();
+  wireDownloads(session.defaultSession);
+
+  if (!config.databaseUrl && !process.env.DATABASE_URL) {
+    loadSetupScreen(
+      mainWindow,
+      "No connection string is configured yet, so there is nowhere to store your projects."
+    );
+    return;
+  }
+
+  try {
+    const started = await startServer({
+      serverDir: resolveServerDir(),
+      config,
+      onLog: log,
+    });
+    serverChild = started.child;
+    buildMenu(started.url);
+    await mainWindow.loadURL(started.url);
+    await runSmokeTestIfRequested(started.url);
+  } catch (err) {
+    loadSetupScreen(
+      mainWindow,
+      `The app server could not start: ${String(err.message || err)}`
+    );
+  }
+}
+
+/**
+ * Headless smoke test for the shell, used by CI and by `npm run desktop:smoke`.
+ * Set INKDROP_SMOKE to a PNG path: the app loads, screenshots itself, writes
+ * a short report and exits. Without the variable this is inert.
+ */
+async function runSmokeTestIfRequested(appUrl) {
+  const out = process.env.INKDROP_SMOKE;
+  if (!out || !mainWindow) return;
+  try {
+    // Give the client bundle a beat to hydrate before capturing.
+    await new Promise((r) => setTimeout(r, 4000));
+    const image = await mainWindow.webContents.capturePage();
+    fs.writeFileSync(out, image.toPNG());
+
+    const title = await mainWindow.webContents.executeJavaScript("document.title");
+    const desktopFlag = await mainWindow.webContents.executeJavaScript(
+      "Boolean(window.inkdrop && window.inkdrop.isDesktop)"
+    );
+    console.log(
+      JSON.stringify({ ok: true, url: appUrl, title, desktopBridge: desktopFlag, screenshot: out })
+    );
+  } catch (err) {
+    console.log(JSON.stringify({ ok: false, error: String(err.message || err) }));
+  } finally {
+    app.exit(0);
+  }
+}
+
+ipcMain.handle("inkdrop:getConfig", () => {
+  const { authSecret, encryptionKey, ...safe } = loadConfig();
+  return safe;
+});
+ipcMain.handle("inkdrop:setDatabaseUrl", (_e, url) => {
+  saveConfig({ databaseUrl: String(url || "") });
+  return true;
+});
+
+// One instance only — two servers on two ports against one database would
+// be confusing and would fight over sessions.
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+
+  app.whenReady().then(boot);
+
+  app.on("activate", () => {
+    if (BrowserWindow.getAllWindows().length === 0) boot();
+  });
+
+  app.on("window-all-closed", () => {
+    if (process.platform !== "darwin") app.quit();
+  });
+
+  app.on("before-quit", () => {
+    serverChild?.kill();
+  });
+}

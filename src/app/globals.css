@@ -1,20 +1,16 @@
 @import "tailwindcss";
 
 /*
- * Inkdrop Studio — Modernist design system.
+ * Inkdrop Studio — design system.
  *
- * Swiss/editorial: a warm grey ground, near-black ink, one loud accent, and
- * square corners everywhere. Structure comes from 2px rules and generous
- * whitespace rather than from cards, borders and shadows.
- *
- * Every colour is defined here twice — light and dark — and used elsewhere
- * only through its semantic name.
+ * Modern, minimal, dense. Near-neutral greys, a single indigo accent used
+ * sparingly, soft 1px borders and low-contrast shadows for depth. Content
+ * lives in a centred container — never edge to edge — so no screen has a
+ * dead half.
  */
 
-/* Archivo — self-hosted (SIL Open Font License 1.1). Variable weight axis,
-   subset by unicode-range the way Google Fonts serves it. Self-hosting keeps
-   the first paint free of a third-party round trip and means the build never
-   depends on fonts.googleapis.com being reachable. */
+/* Archivo, self-hosted (SIL Open Font License 1.1). A neutral grotesk used
+   at 400–600; the heavy display weights are deliberately unused. */
 @font-face {
   font-family: "Archivo";
   font-style: normal;
@@ -52,89 +48,94 @@
 :root {
   color-scheme: light;
 
-  /* Ground and ink */
-  --paper: #f3f2f2;
-  --surface: #eae9e9;
-  --surface-2: #e0dfdf;
-  --surface-3: #d5d3d3;
-  --ink: #201e1d;
-  --ink-muted: color-mix(in srgb, #201e1d 62%, transparent);
-  --ink-subtle: color-mix(in srgb, #201e1d 45%, transparent);
+  /* Ground: a hair off pure white so cards can be white and still read. */
+  --paper: #fbfbfc;
+  --surface: #ffffff;
+  --surface-2: #f4f4f6;
+  --surface-3: #e9e9ee;
 
-  /* Rules. `line` is the 2px structural rule; `hair` the 1px sub-divider. */
-  --line: color-mix(in srgb, #201e1d 40%, transparent);
-  --hair: color-mix(in srgb, #201e1d 20%, transparent);
-  --line-strong: color-mix(in srgb, #201e1d 62%, transparent);
+  --ink: #17171a;
+  --ink-muted: #6b6b76;
+  --ink-subtle: #9a9aa5;
 
-  /* Accent — one hue (262), stepped on a shared OKLCH lightness scale. */
-  --accent: oklch(0.505 0.215 262);
-  --accent-hover: oklch(0.46 0.195 262);
-  --accent-active: oklch(0.385 0.165 262);
-  --accent-ink: var(--paper);
-  --accent-100: oklch(0.965 0.022 262);
-  --accent-200: oklch(0.925 0.05 262);
-  --accent-300: oklch(0.865 0.085 262);
-  --accent-700: oklch(0.385 0.165 262);
-  --accent-800: oklch(0.31 0.125 262);
+  /* Borders are quiet — depth comes from shadow, not from heavy rules. */
+  --line: #e7e7ec;
+  --hair: #efeff3;
+  --line-strong: #d6d6de;
 
-  /* Status — same lightness discipline as the accent ramp. */
-  --success: oklch(0.44 0.13 150);
-  --success-soft: oklch(0.945 0.04 150);
-  --success-ink: oklch(0.32 0.1 150);
-  --warning: oklch(0.5 0.13 70);
-  --warning-soft: oklch(0.95 0.045 70);
-  --warning-ink: oklch(0.36 0.1 70);
-  --danger: oklch(0.505 0.2 27);
-  --danger-soft: oklch(0.95 0.035 27);
-  --danger-ink: oklch(0.36 0.14 27);
+  /* One accent, used for links, focus and selected state. Primary buttons
+     are near-black: it keeps the accent rare enough to still mean something. */
+  --accent: #5551ea;
+  --accent-hover: #4340d4;
+  --accent-active: #3a37bb;
+  --accent-ink: #ffffff;
+  --accent-soft: #eeeefe;
+  --accent-border: #d6d5fb;
 
-  --shadow-sm: 0 1px 2px color-mix(in srgb, #2d2b2b 14%, transparent);
-  --shadow-md: 0 3px 10px color-mix(in srgb, #2d2b2b 16%, transparent);
-  --shadow-lg: 0 12px 32px color-mix(in srgb, #2d2b2b 22%, transparent);
+  /* Solid action colour (buttons, avatar) — the product's "ink" gesture. */
+  --solid: #17171a;
+  --solid-hover: #2c2c33;
+  --solid-ink: #ffffff;
 
-  /* Baseline: everything vertical is a multiple of this. */
-  --leading: 28px;
+  --success: #067a55;
+  --success-soft: #e6f6f0;
+  --success-border: #b7e4d4;
+  --warning: #a15c07;
+  --warning-soft: #fdf3e5;
+  --warning-border: #f3d9ae;
+  --danger: #d0342c;
+  --danger-soft: #fdeeed;
+  --danger-border: #f6c9c6;
+
+  /* Layered, low-opacity — a modern app hints at depth, it doesn't shout. */
+  --shadow-xs: 0 1px 2px rgb(20 20 30 / 0.04);
+  --shadow-sm: 0 1px 2px rgb(20 20 30 / 0.04), 0 1px 3px rgb(20 20 30 / 0.06);
+  --shadow-md: 0 2px 4px rgb(20 20 30 / 0.04), 0 6px 16px rgb(20 20 30 / 0.08);
+  --shadow-lg: 0 8px 24px rgb(20 20 30 / 0.1), 0 24px 48px rgb(20 20 30 / 0.12);
 }
 
 .dark {
   color-scheme: dark;
 
-  --paper: #191817;
-  --surface: #221f1f;
-  --surface-2: #2b2828;
-  --surface-3: #363232;
-  --ink: #f2efed;
-  --ink-muted: color-mix(in srgb, #f2efed 62%, transparent);
-  --ink-subtle: color-mix(in srgb, #f2efed 42%, transparent);
+  --paper: #0b0b0e;
+  --surface: #131317;
+  --surface-2: #1a1a20;
+  --surface-3: #24242c;
 
-  --line: color-mix(in srgb, #f2efed 34%, transparent);
-  --hair: color-mix(in srgb, #f2efed 16%, transparent);
-  --line-strong: color-mix(in srgb, #f2efed 55%, transparent);
+  --ink: #f4f4f6;
+  --ink-muted: #a0a0ad;
+  --ink-subtle: #6e6e7b;
 
-  /* Lifted for legibility on a dark ground; same hue. */
-  --accent: oklch(0.68 0.17 262);
-  --accent-hover: oklch(0.75 0.15 262);
-  --accent-active: oklch(0.8 0.12 262);
-  --accent-ink: #16151a;
-  --accent-100: oklch(0.27 0.075 262);
-  --accent-200: oklch(0.32 0.1 262);
-  --accent-300: oklch(0.4 0.13 262);
-  --accent-700: oklch(0.78 0.13 262);
-  --accent-800: oklch(0.87 0.09 262);
+  --line: #26262e;
+  --hair: #1e1e25;
+  --line-strong: #35353f;
 
-  --success: oklch(0.75 0.16 150);
-  --success-soft: oklch(0.29 0.07 150);
-  --success-ink: oklch(0.85 0.13 150);
-  --warning: oklch(0.79 0.15 70);
-  --warning-soft: oklch(0.31 0.07 70);
-  --warning-ink: oklch(0.88 0.12 70);
-  --danger: oklch(0.68 0.19 27);
-  --danger-soft: oklch(0.3 0.09 27);
-  --danger-ink: oklch(0.82 0.14 27);
+  --accent: #8b88ff;
+  --accent-hover: #a3a1ff;
+  --accent-active: #b9b7ff;
+  --accent-ink: #12121a;
+  --accent-soft: #1c1b33;
+  --accent-border: #302e5c;
 
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5);
-  --shadow-md: 0 3px 10px rgb(0 0 0 / 0.55);
-  --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.7);
+  /* Inverted on dark: the solid gesture becomes light-on-dark. */
+  --solid: #f4f4f6;
+  --solid-hover: #dcdce2;
+  --solid-ink: #131317;
+
+  --success: #3ecf9a;
+  --success-soft: #10261f;
+  --success-border: #1d4438;
+  --warning: #e5a95a;
+  --warning-soft: #2a1f10;
+  --warning-border: #4a3517;
+  --danger: #f87171;
+  --danger-soft: #2c1618;
+  --danger-border: #4d2226;
+
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4), 0 1px 3px rgb(0 0 0 / 0.5);
+  --shadow-md: 0 2px 4px rgb(0 0 0 / 0.4), 0 6px 16px rgb(0 0 0 / 0.55);
+  --shadow-lg: 0 8px 24px rgb(0 0 0 / 0.6), 0 24px 48px rgb(0 0 0 / 0.7);
 }
 
 @theme inline {
@@ -142,6 +143,7 @@
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
+
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
   --color-ink-subtle: var(--ink-subtle);
@@ -154,97 +156,111 @@
   --color-accent-hover: var(--accent-hover);
   --color-accent-active: var(--accent-active);
   --color-accent-ink: var(--accent-ink);
-  --color-accent-100: var(--accent-100);
-  --color-accent-200: var(--accent-200);
-  --color-accent-300: var(--accent-300);
-  --color-accent-700: var(--accent-700);
-  --color-accent-800: var(--accent-800);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-border: var(--accent-border);
+  /* Compatibility aliases for the earlier numeric accent steps. */
+  --color-accent-100: var(--accent-soft);
+  --color-accent-200: var(--accent-soft);
+  --color-accent-300: var(--accent-border);
+  --color-accent-700: var(--accent);
+  --color-accent-800: var(--accent);
+
+  --color-solid: var(--solid);
+  --color-solid-hover: var(--solid-hover);
+  --color-solid-ink: var(--solid-ink);
 
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
-  --color-success-ink: var(--success-ink);
+  --color-success-border: var(--success-border);
   --color-warning: var(--warning);
   --color-warning-soft: var(--warning-soft);
-  --color-warning-ink: var(--warning-ink);
+  --color-warning-border: var(--warning-border);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
-  --color-danger-ink: var(--danger-ink);
+  --color-danger-border: var(--danger-border);
 
-  --font-sans: "Archivo", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-display: "Archivo", system-ui, sans-serif;
-  --font-mono: ui-monospace, Menlo, SFMono-Regular, Consolas, monospace;
+  --font-sans: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    sans-serif;
+  --font-display: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  /* Square by decision, not by omission. */
-  --radius-none: 0px;
-  --radius-sm: 0px;
-  --radius-md: 0px;
-  --radius-lg: 0px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 
+  --shadow-xs: var(--shadow-xs);
   --shadow-card: var(--shadow-sm);
   --shadow-float: var(--shadow-md);
   --shadow-overlay: var(--shadow-lg);
 }
 
-* {
-  box-sizing: border-box;
-  border-color: var(--line);
-}
+/* Base element styling lives in @layer base so that Tailwind utilities —
+   which sit in a later layer — always win. Unlayered CSS beats every
+   layer, which silently defeated things like `mx-auto` on a heading. */
+@layer base {
+  * {
+    box-sizing: border-box;
+    border-color: var(--line);
+  }
 
-/* These live here rather than as classes on <html> so that React renders no
-   attributes on that element — the inline theme script mutates its class
-   list before hydration, and React rejects a mismatch on an attribute it
-   also owns. */
-html {
-  height: 100%;
-  -webkit-text-size-adjust: 100%;
-}
+  /* Kept off <html> as attributes so React renders none there — the inline
+     theme script mutates its class list before hydration. */
+  html {
+    height: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
 
-body {
-  margin: 0;
-  min-height: 100%;
-  -webkit-font-smoothing: antialiased;
-  background: var(--paper);
-  color: var(--ink);
-  font-family: var(--font-sans);
-  font-size: 15px;
-  line-height: 1.55;
-  font-weight: 400;
-  text-wrap: pretty;
-}
+  body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.6;
+    font-weight: 400;
+    letter-spacing: -0.006em;
+    text-wrap: pretty;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 
-/* Headings carry the system's voice: heavy weight, tight tracking. */
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: var(--font-display);
-  font-weight: 800;
-  line-height: 1.12;
-  letter-spacing: -0.015em;
-  margin: 0;
-}
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    margin: 0;
+    color: var(--ink);
+  }
 
-a {
-  color: inherit;
-  text-underline-offset: 3px;
-}
+  a {
+    color: inherit;
+    text-underline-offset: 3px;
+  }
 
-img {
-  display: block;
-  max-width: 100%;
-}
+  img {
+    display: block;
+    max-width: 100%;
+  }
 
-:focus {
-  outline: none;
-}
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-::selection {
-  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  :focus {
+    outline: none;
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -258,171 +274,196 @@ img {
   }
 }
 
-/* ─────────────────────────────────────────────────────────────────────
-   Typographic utilities
-   ───────────────────────────────────────────────────────────────────── */
+/* Our own classes sit in @layer components, below utilities, so a
+   one-off utility can always override them at a call site. */
+@layer components {
+  /* ─────────────────────────────────────────────────────────────────────
+     Layout
+     ───────────────────────────────────────────────────────────────────── */
 
-/* Oversized display type. The negative margin optically hangs the first
-   letter's sidebearing onto the left margin, so the text aligns to the rule
-   above it rather than sitting a hair inside it. */
-.disp {
-  font-family: var(--font-display);
-  font-weight: 800;
-  letter-spacing: -0.025em;
-  line-height: 1.06;
-  margin-left: -0.058em;
-}
-
-/* Small uppercase section marker, set in the accent. */
-.kicker {
-  display: block;
-  font-size: 12px;
-  line-height: var(--leading);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--accent-700);
-  font-feature-settings: "tnum" 1;
-}
-
-/* Uppercase micro-label for column heads and field groups. */
-.lbl {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-muted);
-}
-
-.mono {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.04em;
-}
-
-/* Tabular figures — numbers in a column must line up. */
-.tnum {
-  font-feature-settings: "tnum" 1;
-}
-
-/* Manuscript prose: the one place the measure is deliberately narrow. */
-.prose-manuscript {
-  font-size: 16px;
-  line-height: var(--leading);
-  max-width: 62ch;
-}
-.prose-manuscript p {
-  margin: 0 0 var(--leading);
-}
-.prose-manuscript p:last-child {
-  margin-bottom: 0;
-}
-
-/* ─────────────────────────────────────────────────────────────────────
-   Structural pieces
-   ───────────────────────────────────────────────────────────────────── */
-
-/* A ruled row with its number hung in the left column and marked by an
-   accent square — the system's main list primitive. */
-.rnum {
-  position: relative;
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 15px;
-  font-feature-settings: "tnum" 1;
-}
-.rnum::before {
-  content: "";
-  position: absolute;
-  left: -22px;
-  top: 6px;
-  width: 9px;
-  height: 9px;
-  background: var(--accent);
-}
-
-/* Progress as discrete ticks rather than a smooth bar — it reads as
-   countable work, and it matches the square geometry. */
-.ticks {
-  display: flex;
-  gap: 3px;
-}
-.ticks > i {
-  display: block;
-  height: 8px;
-  flex: 1;
-  background: color-mix(in srgb, var(--ink) 20%, transparent);
-}
-.ticks > i.on {
-  background: var(--accent);
-}
-
-/* Placeholder imagery: hatched fill, never a grey box. */
-.hatch {
-  background-image: repeating-linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--ink) 15%, transparent) 0 2px,
-    transparent 2px 9px
-  );
-}
-
-@keyframes inkdrop-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(3px);
+  /* The centred measure every screen sits in. Nothing goes edge to edge. */
+  .container-app {
+    width: 100%;
+    max-width: 1160px;
+    margin-inline: auto;
+    padding-inline: 20px;
   }
-  to {
-    opacity: 1;
-    transform: none;
+  @media (min-width: 768px) {
+    .container-app {
+      padding-inline: 32px;
+    }
   }
-}
-.animate-fade-in {
-  animation: inkdrop-fade-in 0.16s ease-out;
-}
 
-@keyframes inkdrop-shimmer {
-  100% {
-    transform: translateX(100%);
+  /* A narrower measure for reading-first pages (auth, onboarding, prose). */
+  .container-narrow {
+    width: 100%;
+    max-width: 760px;
+    margin-inline: auto;
+    padding-inline: 20px;
   }
-}
-.skeleton {
-  position: relative;
-  overflow: hidden;
-  background: var(--surface);
-}
-.skeleton::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  transform: translateX(-100%);
-  background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in srgb, var(--surface-3) 70%, transparent),
-    transparent
-  );
-  animation: inkdrop-shimmer 1.4s infinite;
-}
-
-/* The caret shown at the end of streaming text. */
-@keyframes inkdrop-blink {
-  50% {
-    opacity: 0;
+  @media (min-width: 768px) {
+    .container-narrow {
+      padding-inline: 32px;
+    }
   }
-}
-.caret {
-  display: inline-block;
-  width: 9px;
-  height: 19px;
-  background: var(--accent);
-  vertical-align: -3px;
-  margin-left: 3px;
-  animation: inkdrop-blink 1s step-end infinite;
-}
 
-@supports (scrollbar-color: auto) {
-  * {
-    scrollbar-color: var(--line) transparent;
-    scrollbar-width: thin;
+  /* ─────────────────────────────────────────────────────────────────────
+     Type utilities
+     ───────────────────────────────────────────────────────────────────── */
+
+  /* Display type: large but not poster-scale, and tracked in rather than out. */
+  .disp {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.032em;
+    line-height: 1.08;
+  }
+
+  /* Quiet uppercase label for column heads and small section markers. */
+  .lbl {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+    color: var(--ink-subtle);
+  }
+
+  /* Eyebrow above a heading. Subtle by default — not a second headline. */
+  .kicker {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: var(--ink-muted);
+  }
+
+  .mono {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: -0.01em;
+  }
+
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Manuscript prose — the one deliberately narrow measure. */
+  .prose-manuscript {
+    font-size: 16px;
+    line-height: 1.75;
+    max-width: 66ch;
+    color: var(--ink);
+  }
+  .prose-manuscript p {
+    margin: 0 0 1.1em;
+  }
+  .prose-manuscript p:last-child {
+    margin-bottom: 0;
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────
+     Effects
+     ───────────────────────────────────────────────────────────────────── */
+
+  /* Soft radial wash behind the hero — depth without an illustration. */
+  .hero-glow {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(
+        680px circle at 50% -10%,
+        color-mix(in srgb, var(--accent) 14%, transparent),
+        transparent 70%
+      );
+  }
+
+  /* Hairline grid used behind hero sections; fades out toward the bottom. */
+  .grid-fade {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(to right, var(--hair) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--hair) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: linear-gradient(to bottom, black, transparent 78%);
+    -webkit-mask-image: linear-gradient(to bottom, black, transparent 78%);
+  }
+
+  /* Row number in a list — quiet, tabular, no decoration. */
+  .rnum {
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+    color: var(--ink-subtle);
+  }
+
+  /* Neutral placeholder fill for images that don't exist yet. */
+  .hatch {
+    background: var(--surface-2);
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--radius-lg);
+  }
+
+  @keyframes inkdrop-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .animate-fade-in {
+    animation: inkdrop-fade-in 0.18s cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  @keyframes inkdrop-shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background: var(--surface-2);
+    border-radius: var(--radius-md);
+  }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--surface-3) 80%, transparent),
+      transparent
+    );
+    animation: inkdrop-shimmer 1.5s infinite;
+  }
+
+  @keyframes inkdrop-blink {
+    50% {
+      opacity: 0;
+    }
+  }
+  .caret {
+    display: inline-block;
+    width: 2px;
+    height: 1.05em;
+    background: var(--accent);
+    vertical-align: -0.16em;
+    margin-left: 2px;
+    border-radius: 1px;
+    animation: inkdrop-blink 1.05s step-end infinite;
+  }
+
+  @supports (scrollbar-color: auto) {
+    * {
+      scrollbar-color: var(--line-strong) transparent;
+      scrollbar-width: thin;
+    }
   }
 }

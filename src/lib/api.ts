@@ -30,6 +30,8 @@ export interface ProviderInfo {
   docsUrl?: string;
   keyHint?: string;
   envVar: string;
+  /** True for providers that sign in instead of taking an API key. */
+  usesSubscription?: boolean;
 }
 
 /** An API error carrying the HTTP status, so callers can special-case 409s. */
