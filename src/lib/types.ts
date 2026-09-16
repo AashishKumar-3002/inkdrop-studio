@@ -135,7 +135,12 @@ export function defaultBookMeta(): BookMeta {
 }
 
 export interface RollingSummaryEntry {
-  chapterIndex: number;
+  /**
+   * Which chapter this summarises. Keyed by id, not position: positions
+   * shift whenever a chapter is added or removed, so an entry keyed by
+   * number silently starts describing a different chapter.
+   */
+  chapterId: string;
   chapterTitle: string;
   summary: string;
   createdAt: string;

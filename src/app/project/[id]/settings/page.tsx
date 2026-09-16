@@ -387,9 +387,9 @@ export default function SettingsPage() {
                 </summary>
                 <ul className="mt-2 space-y-2">
                   {rollingSummary.entries.map((e) => (
-                    <li key={e.chapterIndex}>
+                    <li key={e.chapterId}>
                       <span className="font-medium text-ink">
-                        Ch. {e.chapterIndex} — {e.chapterTitle}:
+                        {e.chapterTitle}:
                       </span>{" "}
                       {e.summary}
                     </li>

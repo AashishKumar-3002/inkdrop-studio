@@ -63,8 +63,8 @@ function renderPriorChapters(project: Project, beforeIndex: number): string {
   const recent = prior.slice(-fullWindow);
   const older = prior.slice(0, Math.max(0, prior.length - fullWindow));
 
-  const rollingByIndex = new Map(
-    (project.rollingSummary?.entries ?? []).map((e) => [e.chapterIndex, e.summary])
+  const rollingById = new Map(
+    (project.rollingSummary?.entries ?? []).map((e) => [e.chapterId, e.summary])
   );
 
   const parts: string[] = [];
@@ -72,7 +72,7 @@ function renderPriorChapters(project: Project, beforeIndex: number): string {
     parts.push("### Earlier chapters (summarized for context):");
     for (const c of older) {
       const summary =
-        rollingByIndex.get(c.index)?.trim() ||
+        rollingById.get(c.id)?.trim() ||
         c.summary?.trim() ||
         c.content.slice(0, 400).trim() + "...";
       parts.push(`Chapter ${c.index} — ${c.title}: ${summary}`);

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { toClientProject, updateProject } from "@/lib/repo/projects";
+import { toClientProject, saveBible } from "@/lib/repo/projects";
 import { getProvider, resolveApiKey } from "@/lib/ai/providers";
 import { extractBibleAnswers } from "@/lib/ai/extractBible";
 import { findQuestion } from "@/lib/questionnaire";
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       filledCount++;
     }
 
-    const updated = await updateProject(project.id, userId, { storyBible });
+    const updated = await saveBible(project.id, userId, storyBible);
     if (!updated) return notFound("Project not found.");
     return NextResponse.json({ project: toClientProject(updated), filledCount });
   });

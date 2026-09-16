@@ -16,14 +16,13 @@ import {
   primaryKey,
   text,
   timestamp,
-  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import type {
   AISettings,
+  AnswerMap,
   BookMeta,
   ImageSettings,
   RollingSummary,
-  StoryBible,
   Storyboard,
 } from "../types";
 
@@ -96,16 +95,56 @@ export const projects = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     onboardingComplete: boolean("onboardingComplete").notNull().default(false),
-    storyBible: jsonb("storyBible").$type<StoryBible>().notNull(),
     aiSettings: jsonb("aiSettings").$type<AISettings>().notNull(),
     imageSettings: jsonb("imageSettings").$type<ImageSettings>().notNull(),
     book: jsonb("book").$type<BookMeta>().notNull(),
     rollingSummary: jsonb("rollingSummary").$type<RollingSummary>().notNull(),
     storyboard: jsonb("storyboard").$type<Storyboard>().notNull(),
-    createdAt: timestamp("createdAt", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updatedAt", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("createdAt", { withTimezone: true })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    // Written by the process making the change, not by the database clock.
+    // Each install has its own database, so defaultNow() would stamp rows
+    // with whichever machine's clock happened to serve the write — useless
+    // for ordering two devices' edits when sync lands.
+    updatedAt: timestamp("updatedAt", { withTimezone: true })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    /** Tombstone. A hard delete can't propagate — see chapters.deletedAt. */
+    deletedAt: timestamp("deletedAt", { withTimezone: true }),
   },
   (t) => [index("project_user_updated_idx").on(t.userId, t.updatedAt)]
+);
+
+/**
+ * Story bible sections, one row each rather than one jsonb blob on the
+ * project. The blob made the whole bible a single sync unit: two devices
+ * filling in different sections offline would overwrite each other
+ * wholesale, and losing an evening's worldbuilding to a merge is the kind
+ * of thing an author doesn't forgive.
+ *
+ * Keyed by (projectId, sectionId), which is stable everywhere — two devices
+ * editing the same section land on the same row, so a conflict is a
+ * per-section last-write-wins instead of a whole-bible one.
+ */
+export const bibleSections = pgTable(
+  "bible_section",
+  {
+    projectId: text("projectId")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    /** A SectionId — feel, philosophy, protagonist, ... */
+    sectionId: text("sectionId").notNull(),
+    answers: jsonb("answers").$type<AnswerMap>().notNull(),
+    notes: text("notes").notNull().default(""),
+    updatedAt: timestamp("updatedAt", { withTimezone: true })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [
+    primaryKey({ columns: [t.projectId, t.sectionId] }),
+    index("bible_section_project_idx").on(t.projectId),
+  ]
 );
 
 export const chapters = pgTable(
@@ -117,7 +156,15 @@ export const chapters = pgTable(
     projectId: text("projectId")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
-    index: integer("index").notNull(),
+    /**
+     * Lexicographic ordering key (fractional indexing). Inserting, moving or
+     * removing a chapter rewrites exactly this one row, where a dense integer
+     * index had to renumber every chapter after the gap. Deliberately NOT
+     * unique: two devices editing offline can legitimately mint the same key
+     * after the same predecessor, and a unique constraint would reject the
+     * merge instead of resolving it. Ties break on id.
+     */
+    sortKey: text("sortKey").notNull(),
     title: text("title").notNull(),
     idea: text("idea").notNull().default(""),
     content: text("content").notNull().default(""),
@@ -128,11 +175,18 @@ export const chapters = pgTable(
     locked: boolean("locked").notNull().default(false),
     /** "ai" | "manual" — how the author intends to produce this chapter. */
     mode: text("mode").notNull().default("ai"),
-    createdAt: timestamp("createdAt", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updatedAt", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("createdAt", { withTimezone: true })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: timestamp("updatedAt", { withTimezone: true })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    /**
+     * Tombstone. A row deleted outright on one device is indistinguishable,
+     * on another, from a row that device has never seen — so the delete gets
+     * undone on the next merge and the chapter comes back.
+     */
+    deletedAt: timestamp("deletedAt", { withTimezone: true }),
   },
-  (t) => [
-    uniqueIndex("chapter_project_index_uq").on(t.projectId, t.index),
-    index("chapter_project_idx").on(t.projectId, t.index),
-  ]
+  (t) => [index("chapter_project_sort_idx").on(t.projectId, t.sortKey)]
 );

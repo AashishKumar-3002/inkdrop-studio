@@ -147,8 +147,8 @@ function buildMenu(appUrl) {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
-/** Shown when there's no database configured yet, instead of a blank window. */
-function loadSetupScreen(win, message) {
+/** Shown when the app can't start, instead of a blank window. */
+function loadErrorScreen(win, message) {
   const html = `<!doctype html><meta charset="utf-8">
 <style>
   :root { color-scheme: light dark; }
@@ -163,10 +163,9 @@ function loadSetupScreen(win, message) {
          padding: 2px 6px; border-radius: 4px; }
 </style>
 <main>
-  <h1>Inkdrop needs a database</h1>
+  <h1>Inkdrop couldn't start</h1>
   <p>${message}</p>
-  <p>Set a Postgres connection string in <code>config.json</code> under the app's
-     data folder, as <code>"databaseUrl"</code>, then reopen the app.</p>
+  <p>Your work is stored in this folder, and reopening the app is safe:</p>
   <p><code>${app.getPath("userData")}</code></p>
 </main>`;
   win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
@@ -178,17 +177,15 @@ async function boot() {
   mainWindow = createWindow();
   wireDownloads(session.defaultSession);
 
-  if (!config.databaseUrl && !process.env.DATABASE_URL) {
-    loadSetupScreen(
-      mainWindow,
-      "No connection string is configured yet, so there is nowhere to store your projects."
-    );
-    return;
-  }
+  // No setup step: the app keeps its library in its own data folder and
+  // creates it on first launch. Asking an author for a Postgres connection
+  // string was the single worst thing about the previous build.
+  const dataDir = path.join(app.getPath("userData"), "library");
 
   try {
     const started = await startServer({
       serverDir: resolveServerDir(),
+      dataDir,
       config,
       onLog: log,
     });
@@ -197,10 +194,7 @@ async function boot() {
     await mainWindow.loadURL(started.url);
     await runSmokeTestIfRequested(started.url);
   } catch (err) {
-    loadSetupScreen(
-      mainWindow,
-      `The app server could not start: ${String(err.message || err)}`
-    );
+    loadErrorScreen(mainWindow, String(err.message || err));
   }
 }
 

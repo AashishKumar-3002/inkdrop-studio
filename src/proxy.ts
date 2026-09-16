@@ -12,6 +12,13 @@ import { NextResponse, type NextRequest } from "next/server";
 const PROTECTED_PREFIXES = ["/project", "/dashboard"];
 const AUTH_ROUTES = ["/login", "/register"];
 
+/**
+ * A single-user desktop install has no accounts, so there is nothing to
+ * redirect to. The env var is set by the desktop shell alongside the
+ * embedded database.
+ */
+const singleUser = Boolean(process.env.INKDROP_DB_DIR);
+
 const SESSION_COOKIES = [
   "authjs.session-token",
   "__Secure-authjs.session-token",
@@ -34,6 +41,8 @@ function isNavigation(req: NextRequest): boolean {
 export default function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   const signedIn = hasSessionCookie(req);
+
+  if (singleUser) return NextResponse.next();
 
   if (PROTECTED_PREFIXES.some((p) => pathname.startsWith(p)) && !signedIn) {
     const url = new URL("/login", req.url);

@@ -11,6 +11,7 @@
  */
 
 const { fork } = require("node:child_process");
+const fs = require("node:fs");
 const net = require("node:net");
 const path = require("node:path");
 
@@ -46,17 +47,53 @@ async function waitForServer(url, { timeoutMs = 30000, signal } = {}) {
 }
 
 /**
+ * Applies pending migrations to the local database and waits for it to
+ * finish. Done before the server starts, not lazily on first query: a
+ * half-migrated schema under a live server produces failures that only
+ * reproduce on someone else's machine.
+ */
+function migrateLocalDb({ root, dataDir, onLog }) {
+  const runner = path.join(root, "migrate-local.mjs");
+  const migrations = path.join(root, "drizzle");
+  if (!fs.existsSync(runner) || !fs.existsSync(migrations)) {
+    throw new Error(
+      "This build is missing its database migrations. Run `npm run desktop:prepare`."
+    );
+  }
+  return new Promise((resolve, reject) => {
+    const child = fork(runner, [dataDir, migrations], {
+      cwd: root,
+      stdio: ["ignore", "pipe", "pipe", "ipc"],
+    });
+    child.stdout?.on("data", (d) => onLog(String(d).trimEnd()));
+    child.stderr?.on("data", (d) => onLog(String(d).trimEnd()));
+    child.once("exit", (code) =>
+      code === 0
+        ? resolve()
+        : reject(new Error(`Could not open your library (migration exit ${code}).`))
+    );
+  });
+}
+
+/**
  * @param {object} opts
  * @param {string} opts.serverDir  directory containing Next's standalone server.js
+ * @param {string} opts.dataDir    directory for this install's local database
  * @param {object} opts.config     persisted per-install config
  * @param {(line: string) => void} [opts.onLog]
  */
-async function startServer({ serverDir, config, onLog = () => {} }) {
+async function startServer({ serverDir, dataDir, config, onLog = () => {} }) {
   const port = await findFreePort();
   // Absolute: fork() resolves a relative entry against `cwd`, which is the
   // server directory itself — a relative path would resolve twice.
   const root = path.resolve(serverDir);
   const entry = path.join(root, "server.js");
+
+  // A remote Postgres is still allowed — someone pointing the app at their
+  // own server, or a future hosted mode — but it is opt-in. Left alone, the
+  // app keeps its library in its own data folder and asks the user nothing.
+  const remote = config.databaseUrl || "";
+  if (!remote) await migrateLocalDb({ root, dataDir, onLog });
 
   const child = fork(entry, [], {
     cwd: root,
@@ -69,7 +106,10 @@ async function startServer({ serverDir, config, onLog = () => {} }) {
       // Tells the app it's running inside the desktop shell, which is what
       // unlocks the Claude subscription provider.
       INKDROP_DESKTOP: "1",
-      DATABASE_URL: config.databaseUrl || process.env.DATABASE_URL || "",
+      // Exactly one of these is set. INKDROP_DB_DIR selects the embedded
+      // PGlite database; DATABASE_URL selects a Postgres server.
+      INKDROP_DB_DIR: remote ? "" : dataDir,
+      DATABASE_URL: remote,
       DATABASE_SSL: config.databaseSsl ? "true" : "false",
       AUTH_SECRET: config.authSecret,
       ENCRYPTION_KEY: config.encryptionKey,
