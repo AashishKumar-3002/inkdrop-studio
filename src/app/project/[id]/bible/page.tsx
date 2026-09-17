@@ -38,12 +38,15 @@ export default function BiblePage() {
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState("");
   const [importing, setImporting] = useState(false);
+  const pendingSave = useRef<Promise<unknown>>(Promise.resolve());
+  const loadVersion = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(() => {
+    const version = ++loadVersion.current;
     api
       .getProject(id)
-      .then((p) => setBible(p.storyBible))
+      .then((p) => { if (version === loadVersion.current) setBible(p.storyBible); })
       .catch((e) => {
         setLoadError(e instanceof Error ? e.message : "Couldn't load this project.");
       });
@@ -66,7 +69,9 @@ export default function BiblePage() {
     setBible(next);
     setStatus("saving");
     try {
-      await api.saveBible(id, next);
+      const request = pendingSave.current.catch(() => {}).then(() => api.saveBible(id, next));
+      pendingSave.current = request;
+      await request;
       setStatus("saved");
       setTimeout(() => setStatus("idle"), 1200);
     } catch (e) {
@@ -92,12 +97,17 @@ export default function BiblePage() {
   }
 
   async function runImport() {
-    if (!importText.trim()) return;
+    if (!importText.trim() || importing) return;
+    ++loadVersion.current;
     setImporting(true);
     try {
+      await pendingSave.current;
       const { project, filledCount } = await api.extractBibleFromText(id, importText);
       setBible(project.storyBible);
       if (filledCount > 0) {
+        setShowImport(false);
+        const changed = SECTION_IDS.find(sid => JSON.stringify(bible?.[sid].answers) !== JSON.stringify(project.storyBible[sid].answers));
+        if (changed) { setOpenSection(changed); setOpenDeepDive(prev => ({ ...prev, [changed]: true })); }
         toast.success(
           `Filled in ${filledCount} answer${filledCount === 1 ? "" : "s"} from your notes.`
         );
@@ -225,6 +235,7 @@ export default function BiblePage() {
         </Card>
       )}
 
+      <fieldset disabled={importing} className="min-w-0">
       <Panel className="mt-6">
         {SECTION_IDS.map((sectionId) => {
           const meta = SECTION_META[sectionId];
@@ -286,7 +297,11 @@ export default function BiblePage() {
                       id={`${panelId}-notes`}
                       rows={3}
                       placeholder="Anything else worth capturing here…"
-                      defaultValue={bible[sectionId].notes}
+                      value={bible[sectionId].notes}
+                      onChange={(e) => {
+                        const notes = e.target.value;
+                        setBible(current => current ? { ...current, [sectionId]: { ...current[sectionId], notes } } : current);
+                      }}
                       onBlur={(e) => updateNotes(sectionId, e.target.value)}
                     />
                   </div>
@@ -326,6 +341,7 @@ export default function BiblePage() {
           );
         })}
       </Panel>
+      </fieldset>
     </div>
   );
 }

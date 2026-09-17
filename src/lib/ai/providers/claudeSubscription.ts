@@ -45,9 +45,9 @@ export const claudeSubscriptionProvider: AIProvider = {
   docsUrl: "https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan",
   keyHint: "No key needed — signs in with your Claude account",
   models: [
-    { id: "sonnet", label: "Claude Sonnet", vision: true },
-    { id: "opus", label: "Claude Opus", vision: true },
-    { id: "haiku", label: "Claude Haiku", vision: true },
+    { id: "sonnet", label: "Claude Sonnet", vision: false },
+    { id: "opus", label: "Claude Opus", vision: false },
+    { id: "haiku", label: "Claude Haiku", vision: false },
   ],
 
   async generateChapter({
@@ -77,9 +77,9 @@ export const claudeSubscriptionProvider: AIProvider = {
     // so every capability that could touch the user's machine is switched
     // off: no tools, and no settings sources (which would otherwise pull in
     // their CLAUDE.md and project config and pollute the prompt).
-    const prompt = imageDataUrl
-      ? `${userPrompt}\n\n[An image was attached but subscription mode does not forward images yet.]`
-      : userPrompt;
+    signal?.throwIfAborted();
+    if (imageDataUrl) throw new Error("Claude subscription mode currently supports text only. Use a vision API provider for sketches.");
+    const prompt = userPrompt;
 
     let full = "";
     const run = query({
@@ -89,7 +89,9 @@ export const claudeSubscriptionProvider: AIProvider = {
         systemPrompt: { type: "custom", prompt: systemPrompt },
         includePartialMessages: true,
         maxTurns: 1,
+        tools: [],
         allowedTools: [],
+        env: { ...process.env, ANTHROPIC_API_KEY: undefined, ANTHROPIC_AUTH_TOKEN: undefined },
         settingSources: [],
       },
     });
@@ -103,7 +105,7 @@ export const claudeSubscriptionProvider: AIProvider = {
 
     try {
       for await (const message of run) {
-        if (signal?.aborted) break;
+        signal?.throwIfAborted();
 
         if (isTextDelta(message)) {
           const text = ((message.event as ContentBlockDelta).delta as TextDelta).text;
@@ -128,6 +130,8 @@ export const claudeSubscriptionProvider: AIProvider = {
       signal?.removeEventListener("abort", onAbort);
     }
 
+    signal?.throwIfAborted();
+    if (!full.trim()) throw new Error("Claude returned no text response. Check your local Claude sign-in.");
     return full;
   },
 };

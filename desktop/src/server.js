@@ -36,7 +36,14 @@ async function waitForServer(url, { timeoutMs = 30000, signal } = {}) {
     try {
       const res = await fetch(url, { method: "GET" });
       if (res.ok || res.status === 307 || res.status === 401) return;
-    } catch {
+      if (res.status === 503) {
+        const body = await res.json().catch(() => null);
+        if (body?.database === "down") {
+          throw new Error("The app server started, but could not open the database. Check the server log for details.");
+        }
+      }
+    } catch (error) {
+      if (error?.message?.includes("could not open the database")) throw error;
       // Not listening yet.
     }
     if (Date.now() > deadline) {
@@ -129,7 +136,12 @@ async function startServer({ serverDir, dataDir, config, onLog = () => {} }) {
   });
 
   // Whichever settles first: a live server, or a crashed child.
-  await Promise.race([waitForServer(`${url}/api/health`), exited]);
+  try {
+    await Promise.race([waitForServer(`${url}/api/health`), exited]);
+  } catch (error) {
+    child.kill();
+    throw error;
+  }
 
   return { child, url, port };
 }

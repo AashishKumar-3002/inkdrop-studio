@@ -7,12 +7,19 @@ import { openrouterProvider } from "./openrouter";
 import { nvidiaProvider } from "./nvidia";
 import { claudeSubscriptionProvider, isDesktopRuntime } from "./claudeSubscription";
 
+import { codexSubscriptionProvider } from "./codexSubscription";
+
+export function isSubscriptionProvider(id: AIProviderId): boolean {
+  return id === "claude-subscription" || id === "codex-subscription";
+}
+
 export const PROVIDERS: Record<AIProviderId, AIProvider> = {
   anthropic: claudeProvider,
   openai: openaiProvider,
   openrouter: openrouterProvider,
   nvidia: nvidiaProvider,
   "claude-subscription": claudeSubscriptionProvider,
+  "codex-subscription": codexSubscriptionProvider,
 };
 
 export function getProvider(id: AIProviderId): AIProvider {
@@ -27,6 +34,7 @@ const ENV_VAR_BY_PROVIDER: Record<AIProviderId, string> = {
   nvidia: "NVIDIA_API_KEY",
   // Signs in with the user's Claude account instead of a key.
   "claude-subscription": "",
+  "codex-subscription": "",
 };
 
 export function envVarFor(providerId: AIProviderId): string {
@@ -45,7 +53,7 @@ export function resolveApiKey(
   // Subscription mode authenticates through the local Claude session, so
   // there is no key to resolve — return a sentinel so callers' "no key
   // configured" guard doesn't reject it.
-  if (providerId === "claude-subscription") {
+  if (isSubscriptionProvider(providerId)) {
     return isDesktopRuntime() ? "subscription" : undefined;
   }
   const stored = storedKeys?.[providerId];
@@ -73,7 +81,7 @@ export function providerCatalogue() {
   return Object.values(PROVIDERS)
     // Subscription mode can't work without a local Claude session, so the
     // web build never offers it.
-    .filter((p) => p.id !== "claude-subscription" || isDesktopRuntime())
+    .filter((p) => !isSubscriptionProvider(p.id) || isDesktopRuntime())
     .map((p) => ({
     id: p.id,
     label: p.label,
@@ -83,6 +91,6 @@ export function providerCatalogue() {
     keyHint: p.keyHint,
       envVar: ENV_VAR_BY_PROVIDER[p.id],
       /** No API key field in Settings for this one. */
-      usesSubscription: p.id === "claude-subscription",
+      usesSubscription: isSubscriptionProvider(p.id),
     }));
 }

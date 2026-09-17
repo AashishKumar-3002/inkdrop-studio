@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
   images: { unoptimized: true },
 
   // Native/CJS packages that must stay outside the server bundle.
-  serverExternalPackages: ["pg", "pdfkit", "epub-gen-memory"],
+  serverExternalPackages: ["@electric-sql/pglite", "pg", "pdfkit", "epub-gen-memory", "@openai/codex-sdk", "@anthropic-ai/claude-agent-sdk"],
 
   async headers() {
     return [

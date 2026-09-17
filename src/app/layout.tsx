@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { SessionProvider } from "next-auth/react";
 import { Toaster } from "sonner";
 import { ThemeProvider, themeScript } from "@/components/ThemeProvider";
+import AIActivityPanel from "@/components/AIActivityPanel";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -54,6 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SessionProvider>
           <ThemeProvider>
             {children}
+            <AIActivityPanel />
             <Toaster
               position="bottom-right"
               toastOptions={{

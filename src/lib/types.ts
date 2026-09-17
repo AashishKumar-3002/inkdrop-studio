@@ -74,6 +74,7 @@ export const AI_PROVIDER_IDS = [
   "nvidia",
   /** Desktop only — authenticates with the user's own Claude subscription. */
   "claude-subscription",
+  "codex-subscription",
 ] as const;
 
 export type AIProviderId = (typeof AI_PROVIDER_IDS)[number];

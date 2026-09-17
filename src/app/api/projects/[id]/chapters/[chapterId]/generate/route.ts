@@ -41,10 +41,10 @@ export async function POST(
     const model = body.model || project.aiSettings.model || provider.defaultModel;
     const apiKey = resolveApiKey(providerId, project.aiSettings.apiKeys);
 
-    if (!apiKey && providerId === "claude-subscription") {
+    if (!apiKey && ["claude-subscription", "codex-subscription"].includes(providerId)) {
       throw new ApiProblem(
         400,
-        "Claude subscription mode only works in the Inkdrop desktop app, which can sign in with your Claude account locally. Pick a provider with an API key instead."
+        "Subscription mode only works in the Inkdrop desktop app using your local Claude or Codex sign-in. Pick a provider with an API key instead."
       );
     }
     if (!apiKey) {
@@ -69,7 +69,9 @@ export async function POST(
     const stream = new ReadableStream({
       async start(controller) {
         let full = "";
+        const send = (event: Record<string, string>) => controller.enqueue(encoder.encode(JSON.stringify(event) + "\n"));
         try {
+          send({ type: "status", heading: "Writing chapter…" });
           full = await provider.generateChapter({
             apiKey,
             model,
@@ -77,10 +79,12 @@ export async function POST(
             userPrompt: user,
             signal: abort.signal,
             onChunk: (chunk) => {
-              controller.enqueue(encoder.encode(chunk));
+              full += chunk;
+              send({ type: "text", text: chunk });
             },
           });
 
+          send({ type: "status", heading: "Saving chapter…" });
           await updateChapter(project.id, chapterId, {
             content: full,
             status: "drafted",
@@ -90,6 +94,7 @@ export async function POST(
           // allowed to fail the response the author is already reading.
           if (project.rollingSummary?.enabled && full.trim()) {
             try {
+              send({ type: "status", heading: "Updating continuity summary…" });
               const summary = await summarizeChapter(provider, {
                 apiKey,
                 model,
@@ -126,19 +131,20 @@ export async function POST(
               // Summarization is a nice-to-have; ignore failures.
             }
           }
+          send({ type: "complete" });
         } catch (err) {
           if (abort.signal.aborted) {
             // Client hung up. Persist whatever streamed so the work isn't lost.
             await updateChapter(project.id, chapterId, {
-              content: full,
-              status: full.trim() ? "drafted" : "idea",
+              content: chapter.content?.trim() ? chapter.content : full,
+              status: chapter.content?.trim() ? chapter.status : full.trim() ? "drafted" : "idea",
             }).catch(() => {});
           } else {
             const message = err instanceof Error ? err.message : "Generation failed";
-            controller.enqueue(encoder.encode(`\n\n[Generation error: ${message}]`));
+            send({ type: "error", message });
             await updateChapter(project.id, chapterId, {
-              status: full.trim() ? "drafted" : "idea",
-              ...(full.trim() ? { content: full } : {}),
+              status: chapter.content?.trim() ? chapter.status : full.trim() ? "drafted" : "idea",
+              ...(!chapter.content?.trim() && full.trim() ? { content: full } : {}),
             }).catch(() => {});
           }
         } finally {
@@ -149,7 +155,7 @@ export async function POST(
 
     return new Response(stream, {
       headers: {
-        "Content-Type": "text/plain; charset=utf-8",
+        "Content-Type": "application/x-ndjson; charset=utf-8",
         "Cache-Control": "no-cache, no-transform",
         "X-Accel-Buffering": "no",
       },

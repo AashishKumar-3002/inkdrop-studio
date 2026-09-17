@@ -134,3 +134,17 @@ describe("buildChapterPrompt", () => {
     expect(buildChapterPrompt(p, "ch-1").system).toContain("The Long Dark");
   });
 });
+
+ it("includes the complete current chapter and revision instructions", () => {
+  const source = "Mara opened the letter.\n" + "Unabridged source text. ".repeat(1500);
+  const p = project({ chapters: [chapter(1, { content: source, idea: "Improve the pacing." })] });
+  const { user } = buildChapterPrompt(p, "ch-1");
+  expect(user).toContain(source.trim());
+  expect(user).toContain("Improve the pacing.");
+  expect(user).toContain("Return the complete revised chapter");
+});
+ it("writes a new chapter when no current text exists", () => {
+  const p = project({ chapters: [chapter(1, { content: "" })] });
+  expect(buildChapterPrompt(p, "ch-1").user).not.toContain("Existing chapter to revise");
+  expect(buildChapterPrompt(p, "ch-1").user).toContain("Write the complete chapter now");
+});
