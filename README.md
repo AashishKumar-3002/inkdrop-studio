@@ -1,320 +1,224 @@
-# Inkdrop Studio
+<p align="center">
+  <img src="public/logo.png" alt="Inkdrop Studio" width="80" />
+</p>
 
-A multi-user web app for writing a novel: build a story bible through a
-visual questionnaire, generate full chapters with an LLM that knows your
-book, and export a finished manuscript as Markdown, PDF or EPUB.
+<h1 align="center">Inkdrop Studio</h1>
 
-Next.js 16 (App Router) · TypeScript · Tailwind v4 · PostgreSQL + Drizzle ·
-Auth.js.
+<h3 align="center">Your story. Your voice. A little help with the next draft.</h3>
 
----
+<p align="center">
+  Plan your world, write your chapters, and revise with AI—all in one desktop workspace.
+  <br />
+  Your library lives on your computer. No account needed to start writing.
+</p>
 
-## What's here
+<p align="center">
+  <a href="https://github.com/AashishKumar-3002/inkdrop-studio/releases"><strong>Download Inkdrop Studio</strong></a> ·
+  <a href="#start-writing">Start writing</a> ·
+  <a href="https://github.com/AashishKumar-3002/inkdrop-studio/issues">Share feedback</a>
+</p>
 
-- **Accounts** — email/password sign-in, plus Google and GitHub when you
-  configure them. Every project belongs to exactly one user, and every API
-  route verifies ownership independently.
-- **Onboarding wizard** (`/project/[id]/onboarding`) — a condensed set of
-  the most important story questions in 10 short steps. Each question is a
-  tap-to-select chip set with an "or write your own" field. You can skip it
-  and fill the bible in later.
-- **Story Bible** (`/project/[id]/bible`) — every answer, editable anytime,
-  with a red asterisk on unanswered essentials. Already have notes? Paste
-  text or upload a `.md`/`.txt` file and Inkdrop maps what it can onto the
-  questionnaire, never overwriting an answer you've already given.
-- **Chapters** (`/project/[id]/chapters`) — list or grid view. Create a
-  chapter from an idea, or switch to "I already have this chapter" and paste
-  it in with a Draft/Final status. Upload many `.txt`/`.md` files at once,
-  setting title and status per file. Each chapter has a **lock**: a locked
-  chapter's title, idea and content are protected from edits, regeneration
-  and deletion — enforced server-side with a 409, not just greyed out in the
-  UI — so revising chapter 8 can't quietly ripple into the chapter 9 you
-  were happy with.
-- **Chapter workspace** — an idea box and **Generate**, which streams a full
-  draft built from the story bible, the hidden story-so-far summary, and
-  recent chapters in full. Edit/Preview tabs, a Stop button that keeps
-  whatever has streamed so far, a "suggest a title" action, and per-chapter
-  MD/PDF/EPUB export.
-- **Storyboard** (`/project/[id]/storyboard`) — a freeform corkboard: drag
-  sticky notes, sketch with a pen (mouse, touch or stylus), and ask the
-  agent things like "what do you think of the story so far?". It reads your
-  notes, your bible, the story-so-far summary, and — on a vision-capable
-  model — the sketch itself, sent as an image.
-- **Book & Cover** (`/project/[id]/book`) — the book's title/subtitle/author
-  (separate from the project's working name), a Cover Studio that proposes
-  art directions from your own story and generates a cover, and whole-book
-  export as EPUB (with cover and title page), PDF or Markdown.
-- **Settings** (`/project/[id]/settings`) — provider, model, API key,
-  cover-art provider, a toggle and viewer for the hidden rolling summary,
-  and project export. A status bar on every project page shows the current
-  model and context window, editable inline.
-- **Dark mode**, keyboard-accessible throughout, and responsive down to
-  small phones.
+![Inkdrop Studio chapter editor with a sample manuscript and the chapter assistant open for revision](docs/images/chapter-assistant.png)
 
-## Getting started
+A paragraph feels flat. A conversation needs tension. You're not sure whether
+that opening chapter works. Inkdrop gives you a place to work through it:
+select a passage and ask for help, get an evidence-backed chapter critique,
+or prepare a rewrite that you review before it touches your draft.
+
+Keep your characters, world, and plot beside your manuscript. Bring the chapters
+you've already written, draft something new, and export your book when it's ready.
+Use your own AI API keys or your local Claude / Codex subscription sign-in on desktop.
+
+**Write first, use AI when you need it.** You decide what changes to keep, with
+saved originals to return to.
+
+> **Early preview · 0.1.0** — Installer builds target macOS, Windows, and Linux.
+> Downloads become available when the release is published. You can also
+> [run from source](#running-from-source).
+
+## Features
+
+- **Story bible** — plan characters, setting, plot, and voice. Import existing
+  notes from Markdown or text files.
+- **Chapter editor** — write, import, or generate chapters with story context.
+  Lock finished chapters and switch between editing and preview.
+- **Chapter assistant** — ask about a selected passage, prepare a revision, or
+  humanize prose. Review proposed changes before applying them and restore
+  saved originals.
+- **Editorial analysis** — get five equally weighted scores and an overall
+  score out of 100, with evidence and suggested improvements. Scores are
+  subjective editorial guidance.
+- **Storyboard** — arrange notes and sketch ideas on a freeform canvas.
+- **Book and cover** — set manuscript details, generate cover art, and export
+  Markdown, PDF, or EPUB.
+- **AI activity** — see which task is running while generation is in progress.
+- **Local library** — the desktop app includes its own database; no PostgreSQL
+  installation is needed.
+
+### Prefer a brighter workspace?
+
+Switch between light, dark, and your system theme.
+
+![Inkdrop Studio in light mode, showing the chapter editor and revision assistant](docs/images/chapter-assistant-light.png)
+
+## Desktop
+
+Find published installers on the [Releases page](https://github.com/AashishKumar-3002/inkdrop-studio/releases).
+
+| Platform | Architecture | Installer |
+| --- | --- | --- |
+| macOS | Apple Silicon, Intel | `.dmg` |
+| Windows | x64 | `.exe` |
+| Linux | x64 | `.AppImage`, `.deb` |
+
+The app bundles its server and database. Node.js is not required to run a
+packaged installer. Current builds are unsigned, so macOS Gatekeeper and
+Windows SmartScreen may warn or block installation. Automatic updates are
+not available yet.
+
+### AI providers
+
+Choose a provider in your project's **Settings**.
+
+| Provider | Authentication | Availability |
+| --- | --- | --- |
+| Anthropic Claude | API key | Desktop and web |
+| OpenAI | API key | Desktop and web |
+| OpenRouter | API key | Desktop and web |
+| NVIDIA NIM | API key | Desktop and web |
+| Claude subscription | Local Claude sign-in | Desktop only |
+| Codex subscription | Local Codex / ChatGPT sign-in | Desktop only |
+
+Subscription providers use the account signed in on your computer and count
+against its usage limits. Follow the sign-in instructions in Settings. These
+modes currently support text only; sketches need a vision-capable API provider,
+and cover generation needs an OpenAI API key.
+
+AI generation requires a connection to the selected provider. Local storage
+does not mean that text sent for AI processing stays on your device.
+
+## Start writing
+
+1. Open Inkdrop Studio and create a project. You can rename it by double-clicking
+   its name in the header.
+2. Fill in your story bible, or import the notes you already have.
+3. Add a chapter by writing, pasting, or uploading an existing draft.
+4. To use AI, choose your provider and authentication method in **Settings**.
+5. Select a passage to ask a question or prepare a revision. Use **Analyze** for
+   feedback on the whole chapter, and review changes before applying them.
+6. Export a chapter or your manuscript when you're ready.
+
+You can write and organize your desktop library without an AI provider. AI is
+optional; it is required only for generation, analysis, and other AI actions.
+
+## Feedback and issues
+
+Found a bug, confusing interaction, or something missing from your writing
+workflow? [Open an issue](https://github.com/AashishKumar-3002/inkdrop-studio/issues).
+Include your app version and operating system; steps or screenshots help with
+bugs. Please leave out private manuscript text, API keys, and account details.
+
+## Running from source
+
+Use **Node.js 22** and npm. CI uses Node.js 22 as well.
 
 ```bash
-git clone <your-fork> && cd inkdrop-studio
-npm install
-cp .env.example .env.local
+git clone https://github.com/AashishKumar-3002/inkdrop-studio.git
+cd inkdrop-studio
+npm ci
+npm ci --prefix desktop
 ```
 
-Fill in `.env.local`:
+### Run the desktop app
 
 ```bash
-DATABASE_URL="postgresql://inkdrop:inkdrop@localhost:5432/inkdrop"
-AUTH_SECRET="$(openssl rand -base64 32)"
-ENCRYPTION_KEY="$(openssl rand -hex 32)"
+npm run desktop
 ```
 
-Then create the schema and start:
+This builds the app and opens Electron. The desktop shell creates its local
+library and secrets automatically; no account or database configuration is
+required. The initial build can take a few minutes.
+
+After making changes, run the same command to rebuild. To reopen the existing
+build without rebuilding:
+
+```bash
+npm --prefix desktop start
+```
+
+### Run the web app
+
+The web app uses PostgreSQL and account-based access.
+
+1. Create a PostgreSQL database.
+2. Copy `.env.example` to `.env.local` and set `DATABASE_URL`.
+3. Generate an `AUTH_SECRET` with `openssl rand -base64 32` and an
+   `ENCRYPTION_KEY` with `openssl rand -hex 32`. Paste the values into `.env.local`.
+4. Apply migrations and start the dev server:
 
 ```bash
 npm run db:migrate
 npm run dev
 ```
 
-Open http://localhost:3000, create an account, and start a project.
+Open [localhost:3000](http://localhost:3000). API keys can be set per project in
+Settings. Optional instance-wide keys and OAuth settings are documented in
+[.env.example](.env.example).
 
-To generate anything you need a model API key — paste one into **Settings**
-inside a project, or set a server-wide fallback (`ANTHROPIC_API_KEY`,
-`OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `NVIDIA_API_KEY`). A user's own key
-always wins over the server's.
+Back up existing databases before applying migrations. Desktop migrations run
+automatically at startup; web database migrations are managed separately.
 
-### With Docker
-
-```bash
-cp .env.example .env      # set AUTH_SECRET and ENCRYPTION_KEY
-docker compose up --build
-docker compose exec app npx drizzle-kit migrate
-```
-
-That brings up Postgres and the app together. The image is built from
-Next's `standalone` output, so it ships only the modules the server
-actually imports.
-
-## AI providers
-
-Four are built in, all selectable per project:
-
-| Provider | Key | Notes |
-| --- | --- | --- |
-| **Claude (Anthropic)** | `ANTHROPIC_API_KEY` | Native SDK, vision on every listed model |
-| **OpenAI** | `OPENAI_API_KEY` | Also the only provider used for cover art |
-| **OpenRouter** | `OPENROUTER_API_KEY` | One key, hundreds of models (`vendor/model` ids) |
-| **NVIDIA NIM** | `NVIDIA_API_KEY` | Hosted open models; point `NVIDIA_NIM_BASE_URL` at your own NIM container to self-host |
-
-OpenAI, OpenRouter and NVIDIA all speak the OpenAI Chat Completions
-protocol, so they share one streaming implementation
-(`src/lib/ai/providers/openaiCompatible.ts`) that differs only by base URL,
-model list and headers. Anthropic has its own SDK and content-block format,
-so it gets its own module.
-
-Cover art always goes through the OpenAI Images API whatever your writing
-model is, because Anthropic has no image-generation endpoint.
-
-### Adding another provider
-
-1. If it's OpenAI-compatible, that's one small file — copy
-   `providers/openrouter.ts` and change the base URL, models and labels.
-   Otherwise implement `AIProvider` from `src/lib/ai/types.ts` directly
-   (stream via `onChunk`, resolve with the full text, honour `signal`, and
-   support the optional `imageDataUrl` if the API has vision).
-2. Add its id to `AI_PROVIDER_IDS` in `src/lib/types.ts`.
-3. Register it in `providers/index.ts` — `PROVIDERS` and
-   `ENV_VAR_BY_PROVIDER`.
-
-The settings UI reads the catalogue from `/api/providers`, so it picks up
-the new provider with no UI change at all.
-
-## How generation works
-
-`src/lib/ai/promptBuilder.ts` assembles each prompt from:
-
-- a rendered brief of the story bible;
-- prior-chapter context — the N most recent chapters in full (N is the
-  "full context window" setting), with everything older represented by the
-  **rolling summary** rather than a naive truncation;
-- the chapter's own `idea`.
-
-### The hidden rolling summary
-
-After each successful generation, `src/lib/ai/summarize.ts` asks the model
-for a short continuity note and stores it against the chapter's index, so
-regenerating a chapter replaces its own entry rather than appending a
-duplicate. It never appears in the manuscript — it exists so a 200-chapter
-novel doesn't have to stuff every prior chapter into the prompt. Toggle it
-off or read the raw log in Settings.
-
-## Data model
-
-PostgreSQL via Drizzle (`src/lib/db/schema.ts`). Chapters are a real table —
-they grow unboundedly and need ordering and per-row updates — while the
-smaller, deeply nested, schema-flexible documents (bible answers, settings,
-storyboard, rolling summary) are `jsonb` columns on the project row, since
-they're always read and written whole.
-
-`src/lib/repo/projects.ts` is the only module that queries them, and every
-function takes a `userId`. There is deliberately no "get project by id" that
-skips the owner check: a project that doesn't exist and a project belonging
-to someone else both return `null`, so the API answers 404 for both and
-never confirms that an id exists.
-
-Migrations are plain SQL in `drizzle/`, generated with `npm run db:generate`
-and applied with `npm run db:migrate`.
-
-## Security notes
-
-- **API keys are encrypted at rest** with AES-256-GCM
-  (`src/lib/crypto.ts`) under `ENCRYPTION_KEY`. They are never sent to the
-  browser: the client receives only `configuredKeys: { openai: true }`, and
-  the settings form posts a new key only when the user actually types one.
-  Rotating `ENCRYPTION_KEY` makes stored keys undecryptable — users have to
-  re-enter them.
-- **Exports carry no credentials.** `.inkdrop.json` strips API keys and the
-  owner id, so a file you send a collaborator can't leak your account.
-  Importing always creates a new project owned by the importer.
-- **Every input is validated** with Zod (`src/lib/validation.ts`) before it
-  reaches the database.
-- `src/proxy.ts` bounces signed-out visitors off app routes, but it's only a
-  cookie-presence check for UX. The real boundary is `requireProject()` /
-  `requireChapterContext()` in `src/lib/apiHelpers.ts`, which every route
-  goes through.
-
-## Coming from the prototype?
-
-The earlier version stored each project as a JSON file under
-`data/projects/`. To bring those in: register an account, then
+### Checks
 
 ```bash
-npm run db:import-legacy -- --email you@example.com
+npm run typecheck
+npx eslint src scripts tests
+npm test
+npm run build
 ```
 
-It's safe to re-run — it skips projects whose name you already have. API
-keys aren't carried across; re-enter them in Settings.
-
-## Project layout
-
-```
-src/
-  app/
-    api/              REST routes (auth, projects, chapters, exports, health)
-    project/[id]/     the workspace: onboarding, bible, chapters, storyboard, book, settings
-    login, register, dashboard
-  components/         UI kit (components/ui), theme, brand, top bar
-  lib/
-    ai/               providers, prompt builder, summarizer, bible extraction, image gen
-    db/               Drizzle schema + connection
-    repo/             the only module that queries projects/chapters
-    export/           markdown, pdf, epub builders
-    auth.ts crypto.ts validation.ts apiHelpers.ts settings.ts
-drizzle/              generated SQL migrations
-tests/                vitest unit tests
-```
-
-## Scripts
+For changes to desktop startup or packaging:
 
 ```bash
-npm run dev              # dev server
-npm run build            # production build
-npm run start            # run the production build
-npm test                 # vitest
-npm run typecheck        # tsc --noEmit
-npm run lint             # eslint
-npm run db:generate      # generate a migration from schema changes
-npm run db:migrate       # apply migrations
-npm run db:studio        # browse the database
-npm run db:import-legacy # import prototype JSON projects
+npm run desktop:prepare
+node scripts/smoke-desktop.mjs
 ```
 
-## Export internals
+See [desktop release documentation](docs/releases.md) for installer builds,
+version tags, draft releases, and icon exports.
 
-`src/lib/export/{markdown,pdf,epub}.ts` build from a plain
-`{ title, author?, coverImageDataUrl?, chapters }` shape:
+## Built with
 
-- **Markdown** — string templating.
-- **PDF** — [`pdfkit`](https://pdfkit.org/), pure JS, no headless browser.
-- **EPUB** — [`epub-gen-memory`](https://www.npmjs.com/package/epub-gen-memory),
-  which only accepts a fetchable `http(s)` URL for the cover (not a buffer
-  or `data:` URL) **and** infers the image's media type from the URL's file
-  extension. Since covers live as data URLs, `epub.ts` briefly serves the
-  bytes from a loopback HTTP server at a path ending in `.png`/`.jpg`, then
-  tears it down. An extensionless URL silently produces a coverless EPUB,
-  which is why `tests/export.test.ts` asserts the cover is really in the
-  archive.
+Next.js 16, React, TypeScript, Tailwind CSS, Electron, Drizzle ORM, and Auth.js.
+Desktop storage uses PGlite; the web app uses PostgreSQL.
 
-## Known limitations
-
-- Cover generation needs an OpenAI key specifically, whatever your writing
-  model is.
-- The storyboard's pen is a freehand canvas, not sketch OCR. On a
-  vision-capable model the agent genuinely sees the drawing; it isn't
-  transcribing handwriting.
-- There's no collaboration or sharing yet — a project has exactly one owner.
-
-
-## Desktop downloads and releases
-
-The **Desktop builds** GitHub Actions workflow builds:
-
-| System | Architecture | Download |
-| --- | --- | --- |
-| macOS | Apple Silicon (arm64), Intel (x64) | `.dmg` |
-| Windows | x64 | `.exe` installer |
-| Linux | x64 | `.AppImage`, `.deb` |
-
-Each build includes the local server, database migrations, and native AI runtime
-for its platform. End users do not need Node.js or Postgres installed.
-Windows ARM and Linux ARM installers are not currently built.
-
-To test builds, push the workflow to GitHub, open **Actions → Desktop builds →
-Run workflow**, and select the branch. Download installers from the completed
-run's artifacts. No release is created for a manual run.
-
-To release, update the versions in both `package.json` and
-`desktop/package.json` (and their lockfiles), commit those changes, then tag the
-commit. For the current version:
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
+```text
+src/app/          Pages and API routes
+src/components/   Shared UI
+src/lib/          AI providers, storage, authentication, and exports
+desktop/          Electron shell and installer configuration
+drizzle/          Database migrations
+tests/            Automated tests
+scripts/          Build, migration, and smoke-check tools
 ```
 
-The workflow checks the tag against both package versions, runs TypeScript,
-lint, and tests, builds on each target platform, and checks fresh local database
-startup. Once all builds succeed, it creates a **draft GitHub Release** with
-installers and `SHA256SUMS.txt`. Tags beginning with `v0.` and tags with a
-prerelease suffix are marked as pre-releases and titled **Preview**. Review the downloads and publish the draft from
-GitHub Releases so other people can download them. Reruns can update draft
-assets; published releases require a new version tag.
+## Roadmap
 
-GitHub's built-in `GITHUB_TOKEN` handles release uploads; no personal access token
-is required. The workflow must be present on the tagged commit. Manual dispatch
-may require first merging the workflow into the repository's default branch.
+- Sync between devices and accounts.
+- Android and iOS apps.
+- Signed installers and automatic updates.
+- Hosted credits, subscriptions, and usage metering.
 
-These builds are **unsigned**. macOS Gatekeeper and Windows SmartScreen can warn
-or block installation. For broad distribution, add macOS Developer ID signing
-and notarization, and Windows code signing. The workflow intentionally disables
-automatic certificate discovery; remove that setting and configure signing when
-certificates are available. Auto-update is not implemented.
+These are planned features, not currently supported. Libraries do not sync
+between devices, and there is no real-time collaboration.
 
+## Contributing
 
-### Desktop branding
+Issues and feedback are welcome. Small, focused fixes and documentation
+improvements are welcome too; there is no expectation that users contribute
+code. Please discuss larger features in an issue before starting a pull request.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the short contributor guide.
 
-The app and installers display **Inkdrop Studio**, with a branded inkdrop icon,
-About/version information, documentation and issue links, and Windows Start Menu
-and desktop shortcuts. Linux packages include desktop-menu metadata. The existing
-`inkdrop-studio-desktop` library folder is retained when branding the visible app.
+## License
 
-Platform icon assets live in `desktop/build/icons/`. To regenerate the ICNS, ICO,
-and Linux PNG sizes from `icon.png` after updating the artwork:
-
-```bash
-npm ci --prefix desktop
-node scripts/build-desktop-icons.mjs
-```
-
-The exporter uses electron-builder's icon toolset and may download it on first
-run. Commit the exported assets so CI does not need to generate artwork. Download
-names include the version, OS, and architecture, for example
-`Inkdrop-Studio-0.1.0-mac-arm64.dmg`.
+Licensed under the [MIT License](LICENSE). Copyright © 2026 Aashish Kumar.
