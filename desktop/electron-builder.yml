@@ -1,6 +1,8 @@
 appId: studio.inkdrop.desktop
 productName: Inkdrop Studio
-copyright: Copyright © Inkdrop Studio
+copyright: Copyright © 2026 Aashish Kumar
+# Include OS and architecture so release uploads never overwrite another build.
+artifactName: Inkdrop-Studio-${version}-${os}-${arch}.${ext}
 
 directories:
   output: dist
@@ -10,6 +12,8 @@ directories:
 # unpacked resource by scripts/build-desktop.mjs (see extraResources).
 files:
   - src/**/*
+  - build/icons/icon.png
+  - build/icons/icon.ico
   - package.json
 
 extraResources:
@@ -22,6 +26,7 @@ extraResources:
 
 mac:
   category: public.app-category.productivity
+  icon: build/icons/icon.icns
   target:
     - target: dmg
       arch: [arm64, x64]
@@ -33,12 +38,22 @@ mac:
   entitlementsInherit: build/entitlements.mac.plist
 
 win:
+  icon: build/icons/icon.ico
   target:
     - target: nsis
       arch: [x64, arm64]
 
 linux:
+  icon: build/icons/png
+  executableName: inkdrop-studio
   category: Office
+  synopsis: Local-first fiction writing and AI editing
+  desktop:
+    entry:
+      Name: Inkdrop Studio
+      Comment: Write, organize, and revise your stories
+      Keywords: writing;fiction;novel;editor;
+      StartupWMClass: Inkdrop Studio
   target:
     - AppImage
     - deb
@@ -46,3 +61,15 @@ linux:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  shortcutName: Inkdrop Studio
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  installerIcon: build/icons/icon.ico
+  uninstallerIcon: build/icons/icon.ico
+
+dmg:
+  title: Inkdrop Studio ${version}
+  icon: build/icons/icon.icns
+
+deb:
+  maintainer: Aashish Kumar <aashish201810kumar@gmail.com>

@@ -1,0 +1,134 @@
+name: Desktop builds
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Validate release version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const version = process.env.GITHUB_REF_NAME.slice(1);
+            for (const file of ["package.json", "desktop/package.json"]) {
+              if (JSON.parse(fs.readFileSync(file)).version !== version) {
+                throw new Error(`${file} version must match tag ${process.env.GITHUB_REF_NAME}`);
+              }
+            }
+          '
+      - run: npm run typecheck
+      - run: npx eslint src scripts tests
+      - run: npm test
+
+  build:
+    needs: checks
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Build on matching hardware: the standalone bundle contains native CLIs.
+          - runner: macos-15
+            platform: mac
+            arch: arm64
+          - runner: macos-15-intel
+            platform: mac
+            arch: x64
+          - runner: windows-2025
+            platform: win
+            arch: x64
+          - runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      # Explicitly unsigned until signing certificates are configured.
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            desktop/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix desktop
+      - run: npm run desktop:prepare
+      - name: Verify bundled server and fresh local database
+        run: node scripts/smoke-desktop.mjs
+      - name: Package installer
+        # Never let electron-builder publish independently of the complete matrix.
+        run: npm --prefix desktop run dist -- --${{ matrix.platform }} --${{ matrix.arch }} --publish never
+      - uses: actions/upload-artifact@v7
+        with:
+          name: desktop-${{ matrix.platform }}-${{ matrix.arch }}
+          retention-days: 14
+          compression-level: 0
+          if-no-files-found: error
+          path: |
+            desktop/dist/*.dmg
+            desktop/dist/*.exe
+            desktop/dist/*.AppImage
+            desktop/dist/*.deb
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: desktop-*
+          merge-multiple: true
+          path: installers
+      - name: Create or update draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          title="Inkdrop Studio $RELEASE_TAG"
+          prerelease=false
+          if [[ "$RELEASE_TAG" == v0.* || "$RELEASE_TAG" == *-* ]]; then
+            title="$title — Preview"
+            prerelease=true
+          fi
+          # Reruns may replace draft assets, but must not alter a published release.
+          if gh release view "$RELEASE_TAG" --json isDraft > release.json; then
+            node -e 'if (!JSON.parse(require("fs").readFileSync("release.json")).isDraft) throw new Error("Release is already published; use a new version tag")'
+          else
+            gh release create "$RELEASE_TAG" --draft --verify-tag --title "$title" --prerelease="$prerelease" --generate-notes
+          fi
+          gh release edit "$RELEASE_TAG" --title "$title" --prerelease="$prerelease"
+          cd installers
+          sha256sum * > SHA256SUMS.txt
+          gh release upload "$RELEASE_TAG" ./* --clobber

@@ -15,6 +15,21 @@ const {
 const { loadConfig, saveConfig } = require("./config");
 const { startServer } = require("./server");
 
+// Keep the existing library location when the visible app name is branded.
+const libraryHome = path.join(app.getPath("appData"), "inkdrop-studio-desktop");
+fs.mkdirSync(libraryHome, { recursive: true });
+app.setPath("userData", libraryHome);
+app.setName("Inkdrop Studio");
+app.setAppUserModelId("studio.inkdrop.desktop");
+app.setAboutPanelOptions({
+  applicationName: "Inkdrop Studio",
+  applicationVersion: app.getVersion(),
+  copyright: "Copyright © 2026 Aashish Kumar",
+  authors: ["Aashish Kumar"],
+  website: "https://github.com/AashishKumar-3002/inkdrop-studio",
+  iconPath: path.join(__dirname, "../build/icons/icon.png"),
+});
+
 /** In a packaged app the server lives in resources; in dev it's the repo. */
 function resolveServerDir() {
   const packaged = path.join(process.resourcesPath || "", "server");
@@ -34,6 +49,8 @@ function log(line) {
 
 function createWindow() {
   const win = new BrowserWindow({
+    title: "Inkdrop Studio",
+    icon: path.join(__dirname, "../build/icons", process.platform === "win32" ? "icon.ico" : "icon.png"),
     width: 1280,
     height: 860,
     minWidth: 900,
@@ -131,6 +148,10 @@ function buildMenu(appUrl) {
     {
       role: "help",
       submenu: [
+        ...(!isMac ? [{ label: "About Inkdrop Studio", click: () => app.showAboutPanel() }] : []),
+        { label: "Documentation", click: () => shell.openExternal("https://github.com/AashishKumar-3002/inkdrop-studio#readme") },
+        { label: "Report an Issue", click: () => shell.openExternal("https://github.com/AashishKumar-3002/inkdrop-studio/issues") },
+        { type: "separator" },
         {
           label: "Show Server Log",
           click: () => {
