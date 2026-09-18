@@ -190,3 +190,14 @@ export const chapters = pgTable(
   },
   (t) => [index("chapter_project_sort_idx").on(t.projectId, t.sortKey)]
 );
+
+/** Append-only chapter assistant outputs and pre-edit snapshots. */
+export const chapterAssistantEntries = pgTable("chapter_assistant_entry", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  chapterId: text("chapterId").notNull().references(() => chapters.id, { onDelete: "cascade" }),
+  kind: text("kind").$type<"result" | "version">().notNull(),
+  sourceContent: text("sourceContent").notNull(),
+  payload: jsonb("payload").$type<import("../chapterAssistant").AssistantPayload>().notNull(),
+  createdAt: timestamp("createdAt", { withTimezone: true }).notNull().$defaultFn(() => new Date()),
+  deletedAt: timestamp("deletedAt", { withTimezone: true }),
+}, t => [index("chapter_assistant_history_idx").on(t.chapterId, t.createdAt)]);
