@@ -12,7 +12,7 @@ export const codexSubscriptionProvider: AIProvider = {
   docsUrl: "https://learn.chatgpt.com/docs/auth",
   keyHint: "Uses your local Codex ChatGPT sign-in, without an API key",
 
-  async generateChapter({ model, systemPrompt, userPrompt, imageDataUrl, signal, onChunk }) {
+  async generateChapter({ model, systemPrompt, userPrompt, imageDataUrl, signal, onChunk, outputSchema }) {
     if (!isDesktopRuntime()) {
       throw new Error("Codex subscription mode is only available in the Inkdrop desktop app.");
     }
@@ -48,7 +48,7 @@ export const codexSubscriptionProvider: AIProvider = {
       });
       const { events } = await thread.runStreamed(userPrompt, {
         signal,
-        outputSchema: {
+        outputSchema: outputSchema ?? {
           type: "object",
           properties: { text: { type: "string", description: "Only the requested final response, without progress commentary or explanations." } },
           required: ["text"],
@@ -69,6 +69,11 @@ export const codexSubscriptionProvider: AIProvider = {
         }
       }
       if (!completed || !finalMessage.trim()) throw new Error("Codex returned no completed text response.");
+      if (outputSchema) {
+        JSON.parse(finalMessage);
+        onChunk(finalMessage);
+        return finalMessage;
+      }
       const result = JSON.parse(finalMessage) as { text?: unknown };
       if (typeof result.text !== "string" || !result.text.trim()) throw new Error("Codex returned no valid final text response.");
       onChunk(result.text);

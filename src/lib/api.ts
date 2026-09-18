@@ -1,3 +1,4 @@
+import type { AssistantEntry, AssistantRequest } from "./chapterAssistant";
 import { withAIActivity } from "./aiActivity";
 import {
   AISettings,
@@ -220,6 +221,20 @@ export const api = {
       reader.releaseLock();
     }
   }),
+
+  /* Chapter assistant */
+  chapterAssistantHistory: (id: string, chapterId: string) =>
+    fetch(`/api/projects/${id}/chapters/${chapterId}/assistant`).then(r => json<AssistantEntry[]>(r)),
+  runChapterAssistant: (id: string, chapterId: string, request: AssistantRequest, signal?: AbortSignal) => {
+    const headings = { ask: "Considering your question…", rewrite: "Preparing a revision…", analyze: "Analyzing chapter…", humanize: "Polishing your writing…" };
+    return withAIActivity(headings[request.action], request.action === "analyze" ? "Chapter analysis ready" : "Assistant response ready", () =>
+      fetch(`/api/projects/${id}/chapters/${chapterId}/assistant`, { method: "POST", headers: jsonHeaders, body: JSON.stringify(request), signal }).then(r => json<AssistantEntry>(r))
+    );
+  },
+  applyChapterAssistant: (id: string, chapterId: string, entryId: string, expectedContent: string, acceptedChanges?: number[]) =>
+    post(`/api/projects/${id}/chapters/${chapterId}/assistant/apply`, { entryId, expectedContent, acceptedChanges }).then(r => json<{ chapter: Chapter; version: AssistantEntry }>(r)),
+  dismissChapterAssistant: (id: string, chapterId: string, entryId: string) =>
+    fetch(`/api/projects/${id}/chapters/${chapterId}/assistant`, { method: "DELETE", headers: jsonHeaders, body: JSON.stringify({ entryId }) }).then(r => json<{ ok: boolean }>(r)),
 
   /* Storyboard */
   saveStoryboard: (id: string, storyboard: Pick<Storyboard, "notes" | "strokes">) =>

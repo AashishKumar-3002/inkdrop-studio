@@ -34,6 +34,17 @@ describe("Codex generation", () => {
     expect(options.config.forced_login_method).toBe("chatgpt");
     expect(mocks.start.mock.calls[0][0].sandboxMode).toBe("read-only");
   });
+  it("uses a native report schema without wrapping it in a text property", async () => {
+    vi.stubEnv("INKDROP_DESKTOP", "1");
+    const outputSchema = { type: "object", properties: { assessment: { type: "string" } }, required: ["assessment"], additionalProperties: false };
+    const response = JSON.stringify({ assessment: "A quiet chapter" });
+    mocks.run.mockResolvedValue({ events: (async function* () {
+      yield { type: "item.completed", item: { type: "agent_message", text: response } };
+      yield { type: "turn.completed" };
+    })() });
+    expect(await codexSubscriptionProvider.generateChapter({ ...request(), outputSchema })).toBe(response);
+    expect(mocks.run.mock.calls[0][1].outputSchema).toEqual(outputSchema);
+  });
   it("rejects a failed turn instead of returning partial text", async () => {
     vi.stubEnv("INKDROP_DESKTOP", "1");
     mocks.run.mockResolvedValue({ events: (async function* () {

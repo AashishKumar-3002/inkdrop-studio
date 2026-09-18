@@ -13,6 +13,8 @@ import {
   LockOpen,
   Sparkles,
 } from "lucide-react";
+import ChapterAssistant from "@/components/ChapterAssistant";
+import type { AssistantAction, TextSelection } from "@/lib/chapterAssistant";
 import { api, ApiError } from "@/lib/api";
 import { AnswerMap, Chapter, ClientProject, SECTION_IDS } from "@/lib/types";
 import {
@@ -63,6 +65,11 @@ export default function ChapterWorkspacePage() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [tab, setTab] = useState<TabId>("edit");
   const [suggesting, setSuggesting] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [assistantAction, setAssistantAction] = useState<AssistantAction>("ask");
+  const [selection, setSelection] = useState<TextSelection | null>(null);
+  const [applying, setApplying] = useState(false);
+  const pendingSave = useRef<Promise<Chapter | null>>(Promise.resolve(null));
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -110,7 +117,9 @@ export default function ChapterWorkspacePage() {
   async function saveField(patch: Partial<Chapter>) {
     setSaveStatus("saving");
     try {
-      const updated = await api.updateChapter(id, chapterId, patch);
+      const request = pendingSave.current.catch(() => null).then(() => api.updateChapter(id, chapterId, patch));
+      pendingSave.current = request;
+      const updated = await request;
       setProject((prev) =>
         prev
           ? { ...prev, chapters: prev.chapters.map((c) => (c.id === updated.id ? updated : c)) }
@@ -118,6 +127,7 @@ export default function ChapterWorkspacePage() {
       );
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 1200);
+      return updated;
     } catch (e) {
       setSaveStatus("idle");
       if (e instanceof ApiError && e.status === 409) {
@@ -126,7 +136,27 @@ export default function ChapterWorkspacePage() {
       } else {
         toast.error(e instanceof Error ? e.message : "Couldn't save that change.");
       }
+      return null;
     }
+  }
+
+  function openAssistant(action: AssistantAction, wholeChapter = false) {
+    if (wholeChapter) setSelection(null);
+    setAssistantAction(action);
+    setAssistantOpen(true);
+  }
+
+  function revealPassage(range: TextSelection) {
+    setTab("edit");
+    setSelection(range);
+    requestAnimationFrame(() => {
+      const editor = contentRef.current;
+      if (!editor) return;
+      editor.focus();
+      editor.setSelectionRange(range.start, range.end);
+      const fraction = range.start / Math.max(content.length, 1);
+      editor.scrollTop = fraction * editor.scrollHeight;
+    });
   }
 
   async function toggleLock() {
@@ -297,7 +327,7 @@ export default function ChapterWorkspacePage() {
             id="chapter-title"
             className="disp w-full min-w-0 border-none bg-transparent p-0 text-[clamp(22px,4vw,28px)] text-ink focus:outline-none disabled:text-ink-muted"
             value={title}
-            disabled={locked}
+            disabled={locked || applying}
             onChange={(e) => setTitle(e.target.value)}
             onBlur={() => saveField({ title })}
           />
@@ -329,6 +359,7 @@ export default function ChapterWorkspacePage() {
             variant="secondary"
             size="sm"
             onClick={toggleLock}
+            disabled={applying}
             aria-label={locked ? "Unlock chapter" : "Lock chapter"}
           >
             {locked ? (
@@ -344,8 +375,10 @@ export default function ChapterWorkspacePage() {
               Stop
             </Button>
           )}
-          <Button size="sm" onClick={generate} loading={generating} disabled={locked}>
-            {generating ? "Writing…" : chapter.content ? "Regenerate" : "Generate chapter"}
+          <Button variant="secondary" size="sm" disabled={!content.trim() || generating || applying} onClick={() => openAssistant("analyze", true)}>Analyze chapter</Button>
+          <Button variant="secondary" size="sm" disabled={!content.trim() || locked || generating || applying} onClick={() => openAssistant("humanize", true)}>Humanize</Button>
+          <Button size="sm" onClick={() => content.trim() ? openAssistant("rewrite", true) : generate()} loading={generating} disabled={locked || applying}>
+            {generating ? "Writing…" : content.trim() ? "Revise chapter" : "Generate chapter"}
           </Button>
         </div>
       </div>
@@ -365,12 +398,12 @@ export default function ChapterWorkspacePage() {
 
       <Panel className="mt-6 lg:flex">
         {/* Left: idea, grounding, drafting progress, status */}
-        <div className="border-b border-hair px-4 py-5 lg:w-[300px] lg:shrink-0 lg:border-b-0 lg:border-r lg:border-line lg:px-5">
+        {!assistantOpen && <div className="border-b border-hair px-4 py-5 lg:w-[300px] lg:shrink-0 lg:border-b-0 lg:border-r lg:border-line lg:px-5">
           <Field label="Your idea for this chapter" htmlFor="chapter-idea" className="mb-5">
             <Textarea
               id="chapter-idea"
               rows={5}
-              disabled={locked}
+              disabled={locked || applying}
               placeholder="What must happen in this chapter? Be as specific or as loose as you like — or skip this and just write the chapter yourself below."
               value={idea}
               onChange={(e) => setIdea(e.target.value)}
@@ -430,6 +463,8 @@ export default function ChapterWorkspacePage() {
           </div>
         </div>
 
+        }
+
         {/* Right: chapter text */}
         <div className="flex flex-1 flex-col px-4 py-5 lg:min-w-0 lg:px-5">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -481,6 +516,17 @@ export default function ChapterWorkspacePage() {
             </span>
           </div>
 
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <Button variant="ghost" size="sm" disabled={!content.trim() || generating || applying} onClick={() => openAssistant("ask")}>Ask AI</Button>
+            {assistantOpen && <Button variant="ghost" size="sm" onClick={() => setAssistantOpen(false)}>Chapter context</Button>}
+            {selection && tab === "edit" && <div role="toolbar" aria-label="Selected passage actions" className="flex flex-wrap items-center gap-1 rounded-lg border border-line bg-surface-2 px-2 py-1" onMouseDown={e => e.preventDefault()}>
+              <span className="mr-1 text-xs text-ink-muted">Selected passage</span>
+              <Button variant="ghost" size="sm" disabled={generating || applying} onClick={() => openAssistant("ask")}>Ask about selection</Button>
+              <Button variant="ghost" size="sm" disabled={locked || generating || applying} onClick={() => openAssistant("rewrite")}>Rewrite selection</Button>
+              <Button variant="ghost" size="sm" disabled={locked || generating || applying} onClick={() => openAssistant("humanize")}>Humanize selection</Button>
+            </div>}
+          </div>
+
           {tab === "edit" ? (
             <div id="panel-edit" role="tabpanel" aria-labelledby="tab-edit">
               <label htmlFor="chapter-content" className="sr-only">
@@ -491,9 +537,13 @@ export default function ChapterWorkspacePage() {
                 ref={contentRef}
                 className="h-[55vh] resize-none text-[15px] leading-relaxed"
                 value={content}
-                disabled={locked}
-                onChange={(e) => setContent(e.target.value)}
-                onBlur={() => saveField({ content })}
+                readOnly={locked || applying || generating}
+                onSelect={e => {
+                  const { selectionStart: start, selectionEnd: end } = e.currentTarget;
+                  setSelection(start < end ? { start, end } : null);
+                }}
+                onChange={(e) => { setContent(e.target.value); setSelection(null); }}
+                onBlur={() => { if (!locked && !applying && !generating) void saveField({ content }); }}
                 placeholder="Generated (or hand-written) prose will appear here — fully editable. If you already have this chapter written, just paste it in."
               />
             </div>
@@ -549,7 +599,7 @@ export default function ChapterWorkspacePage() {
               <Button
                 variant="secondary"
                 size="sm"
-                disabled={locked}
+                disabled={locked || applying}
                 onClick={() => saveField({ content, status: "final" })}
               >
                 Mark as final
@@ -557,6 +607,27 @@ export default function ChapterWorkspacePage() {
             )}
           </div>
         </div>
+        <ChapterAssistant
+          key={chapterId}
+          projectId={id} chapterId={chapterId} open={assistantOpen} action={assistantAction}
+          onActionChange={setAssistantAction} onClose={() => setAssistantOpen(false)}
+          content={content} selection={selection} onSelectionChange={setSelection}
+          locked={locked} providerLabel={({ anthropic: "Claude", openai: "OpenAI", openrouter: "OpenRouter", nvidia: "NVIDIA NIM", "claude-subscription": "Claude subscription", "codex-subscription": "Codex subscription" })[project.aiSettings.provider]}
+          onApplyingChange={setApplying} onReveal={revealPassage}
+          beforeApply={async () => {
+            await pendingSave.current.catch(() => null);
+            if (content !== chapter.content || title !== chapter.title || idea !== chapter.idea) {
+              const saved = await saveField({ content, title, idea });
+              if (!saved) throw new Error("Save the chapter before applying this suggestion.");
+            }
+          }}
+          onApplied={updated => {
+            setContent(updated.content);
+            setSelection(null);
+            setProject(prev => prev ? { ...prev, chapters: prev.chapters.map(c => c.id === updated.id ? updated : c) } : prev);
+            setSaveStatus("saved");
+          }}
+        />
       </Panel>
 
       <div className="mt-5 flex flex-wrap items-center gap-2 text-xs text-ink-subtle">
