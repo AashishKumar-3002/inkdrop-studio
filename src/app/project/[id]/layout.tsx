@@ -2,13 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import { ChevronRight } from "lucide-react";
+import ProjectName from "@/components/ProjectName";
 import ProjectTopBar from "@/components/ProjectTopBar";
 import { Wordmark } from "@/components/Brand";
 import { ThemeToggle } from "@/components/ThemeProvider";
 import { UserMenu } from "@/components/UserMenu";
-import { api } from "@/lib/api";
 import { Container, cn } from "@/components/ui";
 
 const TABS = [
@@ -23,36 +21,13 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
   const pathname = usePathname();
   const params = useParams<{ id: string }>();
   const isOnboarding = pathname?.includes("/onboarding");
-  const [crumb, setCrumb] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .getProject(params.id)
-      .then((p) => {
-        if (!cancelled) setCrumb(p.book?.title || p.name);
-      })
-      .catch(() => {
-        // The page reports load failures; the breadcrumb just stays empty.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [params.id]);
 
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-40 border-b border-line bg-paper/80 backdrop-blur-md">
         <Container className="flex h-14 items-center gap-2">
           <Wordmark href="/dashboard" />
-          {crumb && (
-            <>
-              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-ink-subtle" aria-hidden />
-              <span className="min-w-0 truncate text-[13px] font-medium" title={crumb}>
-                {crumb}
-              </span>
-            </>
-          )}
+          <ProjectName key={params.id} projectId={params.id} />
           <div className="ml-auto flex shrink-0 items-center gap-2">
             <span className="hidden sm:block">
               <ThemeToggle />
