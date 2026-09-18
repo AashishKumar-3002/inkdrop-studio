@@ -12,6 +12,7 @@ export interface GenerateChapterRequest {
   /** Lets a route abort the upstream call when the client disconnects. */
   signal?: AbortSignal;
   /** Called with each new text chunk as it streams in. */
+  outputSchema?: Record<string, unknown>;
   onChunk: (chunk: string) => void;
 }
 

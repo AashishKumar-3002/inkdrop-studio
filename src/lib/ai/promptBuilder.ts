@@ -53,7 +53,7 @@ const MAX_FULL_CONTEXT_CHARS = 24000;
  * older ones compressed to their stored summaries, so the context window
  * stays bounded as a novel grows to hundreds of chapters.
  */
-function renderPriorChapters(project: Project, beforeIndex: number): string {
+export function renderPriorChapters(project: Project, beforeIndex: number): string {
   const prior = project.chapters
     .filter((c) => c.index < beforeIndex)
     .sort((a, b) => a.index - b.index);
