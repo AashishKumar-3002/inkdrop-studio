@@ -123,3 +123,16 @@ describe("modelSupportsVision", () => {
     expect(modelSupportsVision("openrouter", "some/brand-new-model")).toBe(true);
   });
 });
+
+ describe("Codex subscription", () => {
+  it("is hidden and rejected on hosted builds, even with API keys", () => {
+    process.env.OPENAI_API_KEY = "must-not-use";
+    expect(providerCatalogue().map(p => p.id)).not.toContain("codex-subscription");
+    expect(resolveApiKey("codex-subscription", {})).toBeUndefined();
+  });
+  it("is available without a key on desktop and declares text-only support", () => {
+    expect(onDesktop(() => resolveApiKey("codex-subscription", {}))).toBe("subscription");
+    expect(onDesktop(() => providerCatalogue().find(p => p.id === "codex-subscription"))?.usesSubscription).toBe(true);
+    expect(modelSupportsVision("codex-subscription", "default")).toBe(false);
+  });
+});

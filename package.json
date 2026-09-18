@@ -14,7 +14,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:import-legacy": "tsx scripts/import-legacy-json.ts",
-    "desktop:prepare": "next build && node scripts/build-desktop.mjs",
+    "desktop:prepare": "next build --webpack && node scripts/build-desktop.mjs",
     "desktop": "npm run desktop:prepare && npm --prefix desktop start",
     "desktop:dist": "npm run desktop:prepare && npm --prefix desktop run dist",
     "db:backfill-sort-keys": "node scripts/backfill-sort-keys.mjs"
@@ -23,6 +23,7 @@
     "@anthropic-ai/sdk": "^0.122.0",
     "@auth/drizzle-adapter": "^1.11.3",
     "@electric-sql/pglite": "^0.5.8",
+    "@openai/codex-sdk": "^0.154.0",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",

@@ -207,16 +207,16 @@ export default function SettingsPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge tone="accent">No API key needed</Badge>
                   <span className="text-[13px] font-medium text-ink">
-                    Signed in with your Claude account
+                    Uses your local subscription sign-in
                   </span>
                 </div>
                 <p className="mt-2 text-xs text-ink-muted">
-                  Generation runs through the Claude Agent SDK using the account
-                  you signed into on this computer, so it draws from your own
-                  Pro or Max limits — the same pool as your normal Claude usage.
-                  Long chapters can consume it quickly. Run{" "}
-                  <code className="rounded bg-surface-2 px-1 py-0.5">claude login</code>{" "}
-                  in a terminal if generation reports that you are not signed in.
+                  Generation uses your {provider.id === "codex-subscription" ? "Codex / ChatGPT" : "Claude"} account on this computer and counts toward your plan’s usage limits.
+                  Sign in once in a terminal with{" "}
+                  <code className="rounded bg-surface-2 px-1 py-0.5">
+                    {provider.id === "codex-subscription" ? "npx @openai/codex login" : "claude auth login"}
+                  </code>. Choose subscription sign-in rather than an API key. Text generation is supported; sketches and cover images need an API provider.
+
                 </p>
                 {provider.docsUrl && (
                   <a

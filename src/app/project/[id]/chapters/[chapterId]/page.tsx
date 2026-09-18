@@ -151,10 +151,10 @@ export default function ChapterWorkspacePage() {
   async function generate() {
     if (locked || !chapter) return;
     setGenerating(true);
-    setContent("");
+    // Keep the source visible until replacement prose arrives.
     // persist the idea/title first so the prompt builder sees the latest idea
     try {
-      await api.updateChapter(id, chapterId, { idea, title });
+      await api.updateChapter(id, chapterId, { idea, title, content });
     } catch (e) {
       setGenerating(false);
       if (e instanceof ApiError && e.status === 409) {

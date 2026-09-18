@@ -1,3 +1,4 @@
+import { withAIActivity } from "./aiActivity";
 import {
   AISettings,
   BookMeta,
@@ -109,8 +110,8 @@ export const api = {
       json<ClientProject>(r)
     ),
   extractBibleFromText: (id: string, text: string) =>
-    post(`/api/projects/${id}/bible/extract`, { text }).then((r) =>
-      json<{ project: ClientProject; filledCount: number }>(r)
+    withAIActivity("Extracting Bible answers…", "Bible import complete", () =>
+      post(`/api/projects/${id}/bible/extract`, { text }).then((r) => json<{ project: ClientProject; filledCount: number }>(r))
     ),
 
   /* Settings */
@@ -132,13 +133,9 @@ export const api = {
   saveBook: (id: string, book: Partial<BookMeta>) =>
     put(`/api/projects/${id}/book`, book).then((r) => json<ClientProject>(r)),
   suggestCoverDirections: (id: string, vision: string) =>
-    post(`/api/projects/${id}/book/cover/suggest`, { vision }).then((r) =>
-      json<{ directions: string[] }>(r)
-    ),
+    withAIActivity("Finding cover directions…", "Cover directions ready", () => post(`/api/projects/${id}/book/cover/suggest`, { vision }).then((r) => json<{ directions: string[] }>(r))),
   generateCover: (id: string, prompt: string) =>
-    post(`/api/projects/${id}/book/cover/generate`, { prompt }).then((r) =>
-      json<{ imageDataUrl: string }>(r)
-    ),
+    withAIActivity("Creating cover art…", "Cover art ready", () => post(`/api/projects/${id}/book/cover/generate`, { prompt }).then((r) => json<{ imageDataUrl: string }>(r))),
 
   /* Chapters */
   createChapter: (
@@ -169,9 +166,7 @@ export const api = {
       json(r)
     ),
   suggestChapterTitle: (id: string, chapterId: string) =>
-    post(`/api/projects/${id}/chapters/${chapterId}/suggest-title`).then((r) =>
-      json<{ title: string }>(r)
-    ),
+    withAIActivity("Finding a chapter title…", "Chapter title ready", () => post(`/api/projects/${id}/chapters/${chapterId}/suggest-title`).then((r) => json<{ title: string }>(r))),
 
   /** Streams a chapter draft, calling onChunk as text arrives. */
   generateChapter: async (
@@ -180,7 +175,7 @@ export const api = {
     opts: { provider?: string; model?: string },
     onChunk: (chunk: string) => void,
     signal?: AbortSignal
-  ): Promise<string> => {
+  ): Promise<string> => withAIActivity("Preparing chapter…", "Chapter generation complete", async (update) => {
     const res = await fetch(`/api/projects/${id}/chapters/${chapterId}/generate`, {
       method: "POST",
       headers: jsonHeaders,
@@ -197,21 +192,38 @@ export const api = {
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let full = "";
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const chunk = decoder.decode(value, { stream: true });
-      full += chunk;
-      onChunk(chunk);
+    let pending = "";
+    let completed = false;
+    const consume = (line: string) => {
+      if (!line.trim()) return;
+      const event = JSON.parse(line) as { type: string; text?: string; heading?: string; message?: string };
+      if (event.type === "status" && event.heading) update(event.heading);
+      if (event.type === "text" && typeof event.text === "string") { full += event.text; onChunk(event.text); }
+      if (event.type === "error") throw new ApiError(event.message || "Generation failed", 500);
+      if (event.type === "complete") completed = true;
+    };
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        pending += done ? decoder.decode() : decoder.decode(value, { stream: true });
+        const lines = pending.split("\n");
+        pending = lines.pop() || "";
+        lines.forEach(consume);
+        if (done) { consume(pending); break; }
+      }
+      if (!completed) throw new ApiError("Chapter generation ended unexpectedly", 500);
+      return full;
+    } catch (error) {
+      await reader.cancel().catch(() => {});
+      throw error;
+    } finally {
+      reader.releaseLock();
     }
-    return full;
-  },
+  }),
 
   /* Storyboard */
   saveStoryboard: (id: string, storyboard: Pick<Storyboard, "notes" | "strokes">) =>
     put(`/api/projects/${id}/storyboard`, storyboard).then((r) => json<ClientProject>(r)),
   askStoryboardAgent: (id: string, question: string, canvasImageDataUrl?: string) =>
-    post(`/api/projects/${id}/storyboard/ask`, { question, canvasImageDataUrl }).then(
-      (r) => json<{ answer: string; chat: Storyboard["chat"] }>(r)
-    ),
+    withAIActivity("Thinking about your storyboard…", "Storyboard reply ready", () => post(`/api/projects/${id}/storyboard/ask`, { question, canvasImageDataUrl }).then((r) => json<{ answer: string; chat: Storyboard["chat"] }>(r))),
 };

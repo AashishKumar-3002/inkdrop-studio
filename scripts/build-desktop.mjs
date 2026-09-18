@@ -70,4 +70,11 @@ if ((await exists(sdk)) && !(await exists(sdkDest))) {
   console.log("copied @anthropic-ai/claude-agent-sdk into the standalone bundle");
 }
 
+// The SDK resolves a platform-specific CLI package at runtime.
+for (const name of ["codex-sdk", "codex", `codex-${process.platform}-${process.arch}`]) {
+  const source = path.join(root, "node_modules", "@openai", name);
+  const target = path.join(standalone, "node_modules", "@openai", name);
+  if (!(await exists(source))) throw new Error(`Missing @openai/${name}; install desktop runtime dependencies.`);
+  await cp(source, target, { recursive: true });
+}
 console.log("desktop bundle ready");
